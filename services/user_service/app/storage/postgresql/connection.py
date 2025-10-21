@@ -1,0 +1,21 @@
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from sqlalchemy.pool import AsyncAdaptedQueuePool
+from typing import AsyncGenerator
+
+from app.config import settings
+
+DATABASEURL=settings.database_url
+
+engine = create_async_engine(
+    DATABASEURL,
+    poolclass=AsyncAdaptedQueuePool,
+    pool_size=10,
+    max_overflow=20
+)
+
+SessionFactory = async_sessionmaker(engine, expire_on_commit=False)
+
+async def get_session() -> AsyncGenerator[AsyncSession, None]:
+    async with SessionFactory() as session:
+        yield session
+
