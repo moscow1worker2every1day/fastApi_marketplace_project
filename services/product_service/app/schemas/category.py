@@ -1,5 +1,4 @@
 from pydantic import field_validator, BaseModel
-from typing import  Optional
 
 
 class NewCategory(BaseModel):
@@ -20,6 +19,7 @@ class NewCategory(BaseModel):
 
 class GetCategory(NewCategory):
     id: int
+
 
 class UpdateCategory(BaseModel):
     id: int

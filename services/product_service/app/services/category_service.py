@@ -31,7 +31,7 @@ class CategoryService:
         if not categories_orm:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=str("Пользователей нет")
+                detail=str("Категорий нет")
             )
         return [GetCategory.from_orm(cat) for cat in categories_orm]
 

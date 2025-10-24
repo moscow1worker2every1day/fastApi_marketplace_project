@@ -33,5 +33,5 @@ app = FastAPI(
 
 app.include_router(user_router)
 
-app.middleware("http")(create_logging_middleware(logger))
+app.middleware("http")(create_logging_middleware(logging))
 
