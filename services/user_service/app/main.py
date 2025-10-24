@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI
 from contextlib import asynccontextmanager
 import logging
 
@@ -7,22 +7,21 @@ from app.storage.postgresql.connection_service import DataBaseService
 from app.middlewares.logging import create_logging_middleware
 
 
-logger = logging.getLogger("auth_srvice_logger")
-
-logger.setLevel(logging.INFO)
-ch = logging.StreamHandler()
-ch.setLevel(logging.INFO)
-logger.addHandler(ch)
+logging.basicConfig(
+    filename="app.log",
+    filemode="a",
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    level=logging.INFO
+)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    dbservice = DataBaseService(logger=logger)
     try:
-        await dbservice.check_connection()
-        await dbservice.create_tables()
+        await DataBaseService.check_connection(logging=logging)
+        await DataBaseService.create_tables(logging=logging)
         yield
     except Exception as e:
-        logger.error(f"Startup failed: {e}")
+        logging.error(f"Startup failed: {e}")
         raise
 
 app = FastAPI(

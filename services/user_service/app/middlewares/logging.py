@@ -6,6 +6,7 @@ def create_logging_middleware(logger):
         start = time.time()
         response = await call_next(request)
         end = time.time()
-        logger.info(f"{request.method} {request.url} -> {response.status_code} time_exec: [{end - start:.3f}] ms")
+        logger.info(f"{request.method} {request.url} -> "
+                    f"{response.status_code} time_exec: [{end - start:.3f}] ms")
         return response
     return log_requests

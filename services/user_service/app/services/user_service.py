@@ -1,5 +1,5 @@
 from app.storage.postgresql.repositories.user_repository import UserReposetory
-from app.schemas.user import NewUser, GetUser
+from app.schemas.user import NewUser, GetUser, UpdateName, UpdateEmail
 
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -42,9 +42,14 @@ class UserService:
             )
 
     @staticmethod
-    async def update_user_name(user_id: int, session: AsyncSession) -> GetUser:
+    async def update_user_name(data: UpdateName, session: AsyncSession) -> GetUser:
         try:
-            updated_user_orm = await UserReposetory.update_user_name(user_id, session)
+            updated_user_orm = await UserReposetory.update_user_name(
+                user_id=data.id,
+                session=session,
+                first_name=data.first_name,
+                last_name=data.last_name
+            )
             return GetUser.from_orm(updated_user_orm)
         except ValueError as e:
             raise HTTPException(
@@ -53,13 +58,17 @@ class UserService:
             )
 
     @staticmethod
-    async def update_user_email(user_id: int, email: str, session: AsyncSession) -> GetUser:
+    async def update_user_email(data: UpdateEmail, session: AsyncSession) -> GetUser:
         try:
-            updated_user_orm = await UserReposetory.update_user_email(user_id=user_id, new_email=email, session=session)
+            updated_user_orm = await UserReposetory.update_user_email(
+                user_id=data.id,
+                new_email=data.email,
+                session=session
+            )
             return GetUser.from_orm(updated_user_orm)
         except ValueError as e:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+                status_code=status.HTTP_409_CONFLICT,
                 detail=str(e)
             )
 

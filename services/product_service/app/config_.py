@@ -1,7 +1,8 @@
-from pydantic import BaseSettings
+from pydantic_settings import BaseSettings
 from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parent  # app/
+
+BASE_DIR = Path(__file__).resolve().parent
 ENV_PATH = BASE_DIR.parent
 
 
@@ -15,11 +16,12 @@ class Settings(BaseSettings):
     @property
     def database_url(self) -> str:
         return (
-            f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+            f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
+            f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
         )
 
     class Config:
-        env_file = ENV_PATH / ".env"  #путь к .env
+        env_file = ".env"
         env_file_encoding = "utf-8"
         extra = "allow"
 

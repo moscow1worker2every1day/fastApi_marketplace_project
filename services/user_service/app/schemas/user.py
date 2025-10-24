@@ -37,4 +37,11 @@ class UpdateName(BaseModel):
         from_attributes = True
 
 
+class UpdateEmail(BaseModel):
+    id: int
+    email: EmailStr
+
+    class Config:
+        from_attributes = True
+
 

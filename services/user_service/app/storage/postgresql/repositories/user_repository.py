@@ -31,7 +31,6 @@ class UserReposetory:
             await session.delete(delete_user)
             await session.commit()
             return delete_user
-
         except ValueError:
             raise ValueError(f"Невозможно удалить данные! Пользователь с id={user_id} не найден")
 
@@ -57,15 +56,13 @@ class UserReposetory:
         try:
             update_user = await UserReposetory.get_user_by_id(user_id=user_id, session=session)
 
-            try:
-                user_with_new_email = await UserReposetory.get_user_by_email(user_email=new_email, session=session)
-                raise ValueError(f"Пользователь с email={new_email} уже существует")
-            except ValueError:
-                update_user.email = new_email
-                await session.commit()
-                await session.refresh(update_user)
-                return update_user
+            update_user.email = new_email
+            await session.commit()
+            await session.refresh(update_user)
+            return update_user
 
+        except IntegrityError:
+            raise ValueError(f"Невозможно обновить email! Пользователь с email={new_email} уже существует")
         except ValueError as e:
             raise ValueError(f"Невозможно обновить email! {e}")
 
