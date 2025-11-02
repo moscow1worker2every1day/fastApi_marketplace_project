@@ -1,7 +1,7 @@
 Запуск 
 
-docker compose up --build
+project > docker compose up --build
 
 Остановка 
 
-docker compose down
+project > docker compose down
