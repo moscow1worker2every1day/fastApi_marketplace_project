@@ -2,7 +2,7 @@ from typing import List
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.schemas.category import NewCategory, GetCategory
+from app.schemas.category import GetCategory
 from app.storage.postgresql.repositories.category_repository import CategoryRepository
 
 

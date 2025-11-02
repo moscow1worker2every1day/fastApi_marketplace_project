@@ -6,7 +6,7 @@ from app.services.category_service import CategoryService
 from app.storage.postgresql.connection import get_session, SessionFactory
 from app.schemas.category import GetCategory, NewCategory, UpdateCategory
 
-router = APIRouter(prefix="/categories")
+router = APIRouter(prefix="/categories", tags=["Categories"])
 
 
 @router.delete("/{category_id}", response_model=GetCategory)

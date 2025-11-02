@@ -6,6 +6,7 @@ from app.api.users import router as user_router
 from app.storage.postgresql.connection_service import DataBaseService
 from app.middlewares.logging import create_logging_middleware
 
+from app.messaging.rabbitMQ.consumer import get_category_msq
 
 logging.basicConfig(
     filename="app.log",
@@ -34,4 +35,10 @@ app = FastAPI(
 app.include_router(user_router)
 
 app.middleware("http")(create_logging_middleware(logging))
+
+
+@app.get("/rabbitMQ")
+async def recieve_msg_from_user_service():
+    res = await get_category_msq()
+    return {"msg": f"{res}"}
 

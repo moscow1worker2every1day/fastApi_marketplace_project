@@ -1,4 +1,4 @@
-from typing import List, Optional, Dict
+from typing import List
 
 from app.storage.postgresql.models.category_model import CategoryOrm
 
@@ -17,11 +17,12 @@ class CategoryRepository:
             await session.commit()
             return delete_category
         except ValueError:
-            raise ValueError(f"Невозможно удалить данные! Пользователь с id={category_id} не найден")
+            raise ValueError(f"Невозможно удалить данные! Категория id={category_id} не найдена")
 
     @staticmethod
     async def get_category_by_id(session: AsyncSession, category_id: int) -> CategoryOrm:
         try:
+            #select on load
             query = select(CategoryOrm).where(CategoryOrm.id == category_id)
             result = await session.execute(query)
             category = result.scalar_one()
@@ -31,6 +32,7 @@ class CategoryRepository:
 
     @staticmethod
     async def get_categories(session: AsyncSession) -> List[CategoryOrm]:
+        # select on load
         query = select(CategoryOrm)
         result = await session.execute(query)
         await session.commit()

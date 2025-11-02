@@ -11,8 +11,8 @@ class DataBaseService:
         for i in range(retries):
             try:
                 async with engine.connect() as conn:
-                    await conn.execute(text("SELECT 1"))
-                    logging.info("Database connection successful")
+                    res = await conn.execute(text("SELECT 1"))
+                    logging.info(f"Database connection successful: {res}")
                     return True
             except SQLAlchemyError:
                 logging.warning(f"Waiting for DB... retry {i + 1}/{retries}")

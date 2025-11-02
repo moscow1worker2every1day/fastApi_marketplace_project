@@ -3,7 +3,7 @@ from typing import List, Optional
 from app.storage.postgresql.models.user_model import UserOrm
 from app.schemas.user import NewUser
 
-from sqlalchemy import select, Row
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 

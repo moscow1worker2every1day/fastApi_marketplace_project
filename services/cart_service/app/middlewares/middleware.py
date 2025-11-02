@@ -1,7 +1,7 @@
-from fastapi import HTTPException, status, Request
+from fastapi import Request, HTTPException, status
 
 
-def error_handler_middleware():
+def catch_server_error():
     async def try_request(request: Request, call_next):
         try:
             return await call_next(request)

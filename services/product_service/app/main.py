@@ -4,8 +4,9 @@ from contextlib import asynccontextmanager
 from app.middlewares.middleware import error_handler_middleware
 from app.storage.postgresql.connection_service import DataBaseService
 from app.logging import logging
-from app.api.category_router import router as category_router
 
+from app.api.category_router import router as category_router
+from app.api.product_router import router as product_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -23,7 +24,9 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan
 )
+
 app.include_router(category_router)
+app.include_router(product_router)
 
 app.middleware("http")(error_handler_middleware())
 
