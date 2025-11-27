@@ -8,7 +8,3 @@ wheels/
 
 # Virtual environments
 .venv
-
-services/user_service/.env
-services/product_service/.env
-services/product_service/app.log
