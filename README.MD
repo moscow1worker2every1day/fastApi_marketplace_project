@@ -1,6 +1,6 @@
 Запуск 
 
-docker compose up --build
+project > docker compose up --build
 
 Сервисы работают по адресам:
 
@@ -12,4 +12,4 @@ Cart_service - localhost:8002
 
 Остановка 
 
-docker compose down
+project > docker compose down
