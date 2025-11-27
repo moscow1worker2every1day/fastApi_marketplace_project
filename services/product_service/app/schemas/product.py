@@ -1,4 +1,4 @@
-from pydantic import field_validator, BaseModel
+from pydantic import field_validator, BaseModel, model_validator
 
 
 class NewProduct(BaseModel):
@@ -6,7 +6,7 @@ class NewProduct(BaseModel):
     description: str | None = None
     price: float
     stock: int
-    category_id: int | str
+    category_id: int
 
     @field_validator("name")
     @classmethod
