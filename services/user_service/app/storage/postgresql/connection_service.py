@@ -2,8 +2,9 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import text
 import asyncio
 
-from .connection import engine
-from .models import Base
+from app.storage.postgesql.connection import engine
+from app.storage.postgesql.models import Base
+
 
 class DataBaseService:
     @staticmethod

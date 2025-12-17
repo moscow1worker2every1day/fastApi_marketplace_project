@@ -1,9 +1,11 @@
 from pydantic import BaseModel, field_validator, EmailStr
-from typing import Optional
+from fastapi import Form
+from typing import Optional, Annotated
+
 
 class NewUser(BaseModel):
-    first_name: str
-    last_name: str
+    first_name: Annotated[str, Form()]
+    last_name: Annotated[str, Form()]
     email: EmailStr
 
     @field_validator("first_name", "last_name")
@@ -22,7 +24,6 @@ class GetUser(NewUser):
 
 
 class UpdateName(BaseModel):
-
     id: int
     first_name: Optional[str] = None
     last_name: Optional[str] = None
@@ -43,5 +44,3 @@ class UpdateEmail(BaseModel):
 
     class Config:
         from_attributes = True
-
-
