@@ -4,7 +4,9 @@ import os
 
 load_dotenv()
 
-connection_params = pika.ConnectionParameters(host=os.getenv("RABBITMQ_HOST"), port=int(os.getenv("RABBITMQ_PORT")))
+connection_params = pika.ConnectionParameters(
+    host=os.getenv("RABBITMQ_HOST", "rabbitmq"),
+    port=int(os.getenv("RABBITMQ_PORT", "5672")))
 
 
 def get_rabbit_connection() -> pika.BlockingConnection:

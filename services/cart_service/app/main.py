@@ -2,8 +2,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.middlewares.middleware import catch_server_error
-from app.logging import logging
-from app.storage.redis.connection import RedisService, redis_connection
+from app.logging import log
+from app.storage.redis.connection import RedisService
 from app.api.cart_router import router
 
 from app.messaging.rabbitmq.consumer import Consumer
@@ -12,11 +12,18 @@ from app.messaging.rabbitmq.consumer import Consumer
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     try:
-        logging.info(f"Startup starting...")
+        log.info(f"Startup starting...")
+        await RedisService.init()
         await RedisService.check_redis_connection()
+        '''
+        отдельный процесс для получения сообщений
+        consumer_task = asyncio.create_task(
+            Consumer.consume_product_delete()
+        )
+        '''
         yield
     except Exception as e:
-        logging.error(f"Startup failed: {e}")
+        log.exception(f"Startup failed: {e}")
         raise
 
 
@@ -34,12 +41,17 @@ app.middleware("http")(catch_server_error())
 
 @app.get('/')
 async def check_redis():
-    await redis_connection.set("key", "value")
-    value = await redis_connection.get("key")
+    await RedisService.get_connection().set("key", "value")
+    value = await RedisService.get_connection().get("key")
     return {"recived_value": value}
 
+@app.get('/redis_connection')
+async def get_redis():
+    return {"recived_value": dict(RedisService.get_connection())}
 
+'''
 @app.get('/rmq')
 async def check_consume():
     rmq = await Consumer.consume_product_delete()
     return {"msg": "ok"}
+'''

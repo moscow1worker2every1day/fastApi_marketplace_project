@@ -35,6 +35,15 @@ async def delete_soft_product(product_id: int, session: SessionFactory = Depends
 
 @router.post("/", response_model=GetProduct)
 async def add_product(data: NewProduct, session: SessionFactory = Depends(get_session)):
+    """
+       Создание товара со все йэтой информацией:
+
+       - **name**: каждый товар должен иметь название
+       - **description**: длинное описание товара
+       - **price**: обязательно
+       - **stock**: количество > 0
+       - **category_id**: каждый товар должен принадлежать хотя бы к одной категории
+       """
     product = await ProductService.create_new_product(new_product=data, session=session)
     return product
 

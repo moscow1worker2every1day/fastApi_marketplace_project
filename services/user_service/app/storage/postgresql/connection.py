@@ -1,10 +1,12 @@
 import os
-
+from dotenv import load_dotenv
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.pool import AsyncAdaptedQueuePool
 from typing import AsyncGenerator
 
-DATABASE_URL = os.getenv("DATABASE_URL")
+load_dotenv()
+
+DATABASE_URL = os.getenv("DATABASE_URL_LOCAL")
 
 engine = create_async_engine(
     DATABASE_URL,

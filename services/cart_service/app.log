@@ -1,2 +1,89 @@
-2025-10-29 22:35:16,536 - INFO - Startup starting...
-2025-10-29 22:35:19,343 - ERROR - Startup failed: Error 11001 connecting to redis:6379. getaddrinfo failed.
+2025-12-14 15:57:45,203 - INFO - Startup starting...
+2025-12-14 15:57:47,926 - ERROR - Startup failed: Error 11001 connecting to redis:6379. getaddrinfo failed.
+2025-12-14 15:58:25,230 - INFO - Startup starting...
+2025-12-14 15:58:41,303 - ERROR - Unhandled exception
+2025-12-14 15:58:53,266 - ERROR - Unhandled exception
+2025-12-14 15:59:14,380 - ERROR - Unhandled exception
+2025-12-14 17:38:58,697 - INFO - Startup starting...
+2025-12-14 17:38:58,698 - INFO - Redis connection established
+2025-12-14 17:39:01,425 - ERROR - Startup failed: Error 11001 connecting to redis:6379. getaddrinfo failed.
+Traceback (most recent call last):
+  File "C:\Users\79153\Desktop\work\fastApiProject\services\cart_service\.venv\Lib\site-packages\redis\asyncio\connection.py", line 307, in connect_check_health
+    await self.retry.call_with_retry(
+  File "C:\Users\79153\Desktop\work\fastApiProject\services\cart_service\.venv\Lib\site-packages\redis\asyncio\retry.py", line 50, in call_with_retry
+    return await do()
+           ^^^^^^^^^^
+  File "C:\Users\79153\Desktop\work\fastApiProject\services\cart_service\.venv\Lib\site-packages\redis\asyncio\connection.py", line 768, in _connect
+    reader, writer = await asyncio.open_connection(
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\79153\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\asyncio\streams.py", line 48, in open_connection
+    transport, _ = await loop.create_connection(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\79153\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\asyncio\base_events.py", line 1083, in create_connection
+    infos = await self._ensure_resolved(
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\79153\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\asyncio\base_events.py", line 1466, in _ensure_resolved
+    return await loop.getaddrinfo(host, port, family=family, type=type,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\79153\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\asyncio\base_events.py", line 905, in getaddrinfo
+    return await self.run_in_executor(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\79153\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\79153\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\socket.py", line 978, in getaddrinfo
+    for res in _socket.getaddrinfo(host, port, family, type, proto, flags):
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+socket.gaierror: [Errno 11001] getaddrinfo failed
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\79153\Desktop\work\fastApiProject\services\cart_service\app\main.py", line 17, in lifespan
+    await RedisService.check_redis_connection()
+  File "C:\Users\79153\Desktop\work\fastApiProject\services\cart_service\app\storage\redis\connection.py", line 39, in check_redis_connection
+    pong = await redis_connection.ping()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\79153\Desktop\work\fastApiProject\services\cart_service\.venv\Lib\site-packages\redis\asyncio\client.py", line 720, in execute_command
+    conn = self.connection or await pool.get_connection()
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\79153\Desktop\work\fastApiProject\services\cart_service\.venv\Lib\site-packages\redis\asyncio\connection.py", line 1198, in get_connection
+    await self.ensure_connection(connection)
+  File "C:\Users\79153\Desktop\work\fastApiProject\services\cart_service\.venv\Lib\site-packages\redis\asyncio\connection.py", line 1231, in ensure_connection
+    await connection.connect()
+  File "C:\Users\79153\Desktop\work\fastApiProject\services\cart_service\.venv\Lib\site-packages\redis\asyncio\connection.py", line 298, in connect
+    await self.connect_check_health(check_health=True)
+  File "C:\Users\79153\Desktop\work\fastApiProject\services\cart_service\.venv\Lib\site-packages\redis\asyncio\connection.py", line 317, in connect_check_health
+    raise ConnectionError(self._error_message(e))
+redis.exceptions.ConnectionError: Error 11001 connecting to redis:6379. getaddrinfo failed.
+2025-12-14 17:41:13,206 - INFO - Startup starting...
+2025-12-14 17:41:13,206 - INFO - Redis connection established
+2025-12-14 17:42:06,325 - INFO - Startup starting...
+2025-12-14 17:42:06,325 - INFO - Redis connection established
+2025-12-14 17:42:08,855 - ERROR - Unhandled exception the JSON object must be str, bytes or bytearray, not NoneType
+2025-12-14 17:42:10,169 - ERROR - Unhandled exception the JSON object must be str, bytes or bytearray, not NoneType
+2025-12-14 17:42:11,554 - ERROR - Unhandled exception the JSON object must be str, bytes or bytearray, not NoneType
+2025-12-14 17:42:32,192 - INFO - Startup starting...
+2025-12-14 17:42:32,193 - INFO - Redis connection established
+2025-12-14 17:43:32,447 - INFO - Startup starting...
+2025-12-14 17:43:32,448 - INFO - Redis connection established
+2025-12-14 17:44:47,541 - INFO - Startup starting...
+2025-12-14 17:44:47,542 - INFO - Redis connection established
+2025-12-14 17:45:19,533 - INFO - Startup starting...
+2025-12-14 17:45:19,533 - INFO - Redis connection established
+2025-12-14 17:45:29,852 - INFO - Startup starting...
+2025-12-14 17:45:29,853 - INFO - Redis connection established
+2025-12-14 17:46:26,338 - INFO - Startup starting...
+2025-12-14 17:46:26,339 - INFO - Redis connection established
+2025-12-14 17:59:05,123 - INFO - Startup starting...
+2025-12-14 17:59:05,123 - INFO - Redis connection established
+2025-12-14 18:04:03,471 - INFO - Startup starting...
+2025-12-14 18:04:03,474 - INFO - Redis connection established
+2025-12-14 18:08:07,532 - INFO - Startup starting...
+2025-12-14 18:08:07,534 - INFO - Redis connection established
+2025-12-14 18:10:01,795 - INFO - Startup starting...
+2025-12-14 18:10:01,796 - INFO - Redis connection established
+2025-12-14 18:15:35,755 - INFO - Startup starting...
+2025-12-14 18:15:35,757 - INFO - Redis connection established
+2025-12-14 21:54:21,891 - INFO - Startup starting...
+2025-12-14 21:54:21,893 - INFO - Redis connection established

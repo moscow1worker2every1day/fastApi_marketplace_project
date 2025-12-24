@@ -1,5 +1,5 @@
 from app.storage.postgresql.repositories.user_repository import UserReposetory
-from app.schemas.user import NewUser, GetUser, UpdateName, UpdateEmail
+from app.schemas.user import NewUser, GetUser, UpdateUserName, UpdateUserEmail, GetNewUser
 
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,10 +20,10 @@ class UserService:
             )
 
     @staticmethod
-    async def get_user_by_email(email: str, session: AsyncSession) -> GetUser:
+    async def get_user_by_email(email: str, session: AsyncSession) -> GetNewUser:
         try:
             user_orm = await UserReposetory.get_user_by_email(user_email=email, session=session)
-            return GetUser.from_orm(user_orm)
+            return GetNewUser.from_orm(user_orm)
         except ValueError as e:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -42,7 +42,7 @@ class UserService:
             )
 
     @staticmethod
-    async def update_user_name(data: UpdateName, session: AsyncSession) -> GetUser:
+    async def update_user_name(data: UpdateUserName, session: AsyncSession) -> GetUser:
         try:
             updated_user_orm = await UserReposetory.update_user_name(
                 user_id=data.id,
@@ -58,7 +58,7 @@ class UserService:
             )
 
     @staticmethod
-    async def update_user_email(data: UpdateEmail, session: AsyncSession) -> GetUser:
+    async def update_user_email(data: UpdateUserEmail, session: AsyncSession) -> GetUser:
         try:
             updated_user_orm = await UserReposetory.update_user_email(
                 user_id=data.id,
@@ -83,10 +83,15 @@ class UserService:
         return [GetUser.from_orm(user) for user in users_orm]
 
     @staticmethod
-    async def create_new_user(data: NewUser, session) -> GetUser:
+    async def create_new_user(data: NewUser, session) -> GetNewUser:
+        hashed_password = data.password
         try:
-            new_user_orm = await UserReposetory.create_new_user(data=data, session=session)
-            return GetUser.from_orm(new_user_orm)
+            new_user_orm = await UserReposetory.create_new_user(first_name=data.first_name,
+                                                                last_name=data.last_name,
+                                                                email=data.email,
+                                                                hashed_password=hashed_password,
+                                                                session=session)
+            return GetNewUser.from_orm(new_user_orm)
         except ValueError as e:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,

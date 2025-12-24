@@ -1,28 +1,36 @@
 from typing import List, Optional
 
 from app.storage.postgresql.models.user_model import UserOrm
-from app.schemas.user import NewUser
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 
+
 class UserReposetory:
 
     @staticmethod
-    async def create_new_user(data: NewUser, session: AsyncSession) -> UserOrm:
+    async def create_new_user(
+            first_name: str,
+            last_name: str,
+            email: str,
+            hashed_password: str,
+            session: AsyncSession
+    ) -> UserOrm:
         try:
             new_user = UserOrm(
-                first_name=data.first_name,
-                last_name=data.last_name,
-                email=data.email,
+                first_name=first_name,
+                last_name=last_name,
+                email=email,
+                hashed_password=hashed_password,
             )
             session.add(new_user)
-            await session.flush() #занести изм в бд предварительно и получить id
+            await session.flush()  # занести изм в бд предварительно и получить id
             await session.commit()
+
             return new_user
         except IntegrityError:
-            raise ValueError(f"Нельзя создать пользователя! Пользователь с email={data.email} уже существует")
+            raise ValueError(f"Нельзя создать пользователя! Пользователь с email={email} уже существует")
 
     @staticmethod
     async def delete_user_by_id(user_id: int, session: AsyncSession) -> UserOrm:
@@ -35,7 +43,11 @@ class UserReposetory:
             raise ValueError(f"Невозможно удалить данные! Пользователь с id={user_id} не найден")
 
     @staticmethod
-    async def update_user_name(user_id: int, session: AsyncSession, first_name: Optional[str] = None, last_name: Optional[str] = None) -> UserOrm:
+    async def update_user_name(user_id: int,
+                               session: AsyncSession,
+                               first_name: Optional[str] = None,
+                               last_name: Optional[str] = None
+                               ) -> UserOrm:
         try:
             update_user = await UserReposetory.get_user_by_id(user_id=user_id, session=session)
 
@@ -52,7 +64,10 @@ class UserReposetory:
             raise ValueError(f"Невозможно обновить данные! Пользователь с id={user_id} не найден")
 
     @staticmethod
-    async def update_user_email(user_id: int, new_email: str, session: AsyncSession) -> UserOrm:
+    async def update_user_email(user_id: int,
+                                new_email: str,
+                                session: AsyncSession
+                                ) -> UserOrm:
         try:
             update_user = await UserReposetory.get_user_by_id(user_id=user_id, session=session)
 
@@ -67,11 +82,11 @@ class UserReposetory:
             raise ValueError(f"Невозможно обновить email! {e}")
 
     @staticmethod
-    async def get_all_users(session: AsyncSession) -> List[UserOrm]:
+    async def get_all_users(session: AsyncSession) -> list[UserOrm]:
         query = select(UserOrm)
         result = await session.execute(query)
         users = result.scalars().all()
-        return users
+        return [user for user in users]
 
     @staticmethod
     async def get_user_by_email(user_email: str, session: AsyncSession) -> UserOrm:
@@ -88,7 +103,7 @@ class UserReposetory:
         query = select(UserOrm).where(UserOrm.id == user_id)
         try:
             result = await session.execute(query)
-            user = result.scalar_one() #выбросит NoResultFound если нет
+            user = result.scalar_one()  # выбросит NoResultFound если нет
             return user
         except NoResultFound:
             raise ValueError(f"Пользователь с id={user_id} не найден")

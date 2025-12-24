@@ -13,5 +13,6 @@ class UserOrm(Base):
     first_name: Mapped[str] = mapped_column(String, index=True, nullable=False)
     last_name: Mapped[str] = mapped_column(String, index=True, nullable=False)
     email: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    hashed_password: Mapped[str] = mapped_column(String, nullable=False)
     created_at: Mapped[datetime] = mapped_column(insert_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(onupdate=func.now(), insert_default=func.now())

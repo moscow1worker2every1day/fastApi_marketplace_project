@@ -1,11 +1,11 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
-from app.schemas.user import NewUser, GetUser, UpdateName, UpdateEmail
+from app.schemas.user import NewUser, GetUser, UpdateUserName, UpdateUserEmail, GetNewUser
 from app.services.user_service import UserService
 from app.storage.postgresql.connection import get_session, SessionFactory
 
-router = APIRouter(prefix="/users")
+router = APIRouter(prefix="/users", tags=["Users"])
 
 SessionDep = Annotated[SessionFactory, Depends(get_session)]
 
@@ -22,25 +22,25 @@ async def get_all_users(session: SessionDep):
     return users
 
 
-@router.post("/", response_model=GetUser, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=GetNewUser, status_code=status.HTTP_201_CREATED)
 async def add_user(data: NewUser, session: SessionDep):
     user = await UserService.create_new_user(data=data, session=session)
     return user
 
 
-@router.delete("/{iser_id}", response_model=GetUser)
+@router.delete("/{user_id}", response_model=GetUser)
 async def delete_user(user_id: int, session: SessionDep):
     user = await UserService.delete_user(user_id=user_id, session=session)
     return user
 
 
 @router.put("/{user_id}/name", response_model=GetUser)
-async def update_user_name(data: UpdateName, session: SessionDep):
+async def update_user_name(data: UpdateUserName, session: SessionDep):
     updated_user = await UserService.update_user_name(data=data, session=session)
     return updated_user
 
 
 @router.put("/{user_id}/email", response_model=GetUser)
-async def update_user_email(data: UpdateEmail, session: SessionDep):
+async def update_user_email(data: UpdateUserEmail, session: SessionDep):
     updated_user = await UserService.update_user_email(data=data, session=session)
     return updated_user
