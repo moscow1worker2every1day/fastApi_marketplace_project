@@ -26,7 +26,7 @@ class DataBaseService:
     @staticmethod
     async def create_tables(*, log=None):
         async with engine.begin() as connection: # делает сам коммит
-            #await connection.run_sync(Base.metadata.drop_all)
+            await connection.run_sync(Base.metadata.drop_all)
             await connection.run_sync(Base.metadata.create_all)
             if log:
                 log.info("Created database tables")

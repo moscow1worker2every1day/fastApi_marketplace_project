@@ -1,7 +1,7 @@
 services:
   postgres:
     image: postgres:16
-    container_name: postgres_db
+    container_name: postgres
     restart: always
     environment:
       POSTGRES_USER: user
@@ -11,9 +11,6 @@ services:
       - "5433:5432"
     networks:
       - backend
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./init-db:/docker-entrypoint-initdb.d
 
   rabbitmq:
     image: rabbitmq:3-management
@@ -47,9 +44,10 @@ services:
     restart: always
     env_file:
       - ./services/user_service/.env
+    volumes:
+      - ./services/user_service:/code
     depends_on:
       - postgres
-      - rabbitmq
     ports:
       - "8000:8000"
     networks:
@@ -64,7 +62,6 @@ services:
       - ./services/product_service/.env
     depends_on:
       - postgres
-      - rabbitmq
     ports:
       - "8001:8001"
     networks:
@@ -79,13 +76,11 @@ services:
       - ./services/cart_service/.env
     depends_on:
       - redis
-      - rabbitmq
     ports:
       - "8002:8002"
     networks:
       - backend
 volumes:
-  postgres_data:
   redis_data:
 
 networks:

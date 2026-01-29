@@ -1,51 +1,40 @@
 from typing import Annotated
 
-from fastapi import Depends, APIRouter, HTTPException
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from jwt.exceptions import InvalidTokenError
+from fastapi import Depends, APIRouter, HTTPException, status
 
-from app.schemas.user import NewUser, GetUser
-from app.services.user_service import UserService
-from app.storage.postgresql.connection import get_session, SessionFactory
+from app.schemas.user import GetUser
+from app.schemas.auth import Token
+from app.services.token_service import TokenService
+from app.config import UserRoles
+from app.dependencies.auth_user_dependency import validate_user, get_current_user_for_refresh
 
-router = APIRouter(prefix="/auth", tags=["auth"])
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-
-SessionDep = Annotated[SessionFactory, Depends(get_session)]
+router = APIRouter(prefix="/auth", tags=["JWT-auth"])
 
 
-async def get_current_user(
-        token: Annotated[str, Depends(oauth2_scheme)]
-) -> GetUser:
-    return GetUser(id=123, first_name="s", last_name="f", email="xs@mail.ri")
 
 
-async def get_current_active_user(
-        current_user: Annotated[NewUser, Depends(get_current_user)],
-) -> NewUser:
-    """Мы хотим получать user только если он активен"""
-    if not current_user.active:
-        raise HTTPException(status_code=400, detail="Inactive user")
-    return current_user
-
-
-@router.post("/token", response_model=dict)
-async def login(
-        user_data: Annotated[OAuth2PasswordRequestForm, Depends()],
-        session: SessionDep
+@router.post("/login", response_model=Token)
+async def login_for_access_token(
+        current_user: Annotated[GetUser, Depends(validate_user)]
 ):
-    user = await UserService.get_user_by_email(session=session, email=user_data.username)
+    """
+    Get username(email) and password
+    Create payload for JWT and encode
+    :return token: Token
+    """
+    access_token = TokenService.create_access_token(current_user)
+    refresh_token = TokenService.create_refresh_token(current_user)
+    return Token(
+        access_token=access_token,
+        refresh_token=refresh_token
+    )
 
-    print(user)
-    hashed_password = user_data.password
-    print(hashed_password)
-    print(user.hashed_password)
-    if not hashed_password == user.hashed_password:
-        raise HTTPException(status_code=400, detail="Incorrect username or password")
-
-    return {"access_token": user.first_name, "token_type": "bearer"}
-
-
-@router.get("/my_account", response_model=GetUser)
-async def get_my_account(current_user: Annotated[str, Depends(get_current_active_user)]):
-    return current_user
+@router.post("/refresh", response_model=Token, response_model_exclude_none=True)
+async def login_refresh_token(
+    current_user: Annotated[GetUser, Depends(get_current_user_for_refresh)]
+):
+    access_token = create_access_token(current_user)
+    return Token(
+         access_token=access_token
+    )

@@ -1,11 +1,15 @@
-from typing import List, Optional
+import logging
+from typing import Optional
 
 from app.storage.postgresql.models.user_model import UserOrm
+from app.config import UserRoles
+
 
 from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError, NoResultFound
+from sqlalchemy.exc import IntegrityError, NoResultFound, MultipleResultsFound
 from sqlalchemy.ext.asyncio import AsyncSession
 
+logger = logging.getLogger(__name__)
 
 class UserReposetory:
 
@@ -15,6 +19,7 @@ class UserReposetory:
             last_name: str,
             email: str,
             hashed_password: str,
+            role: UserRoles,
             session: AsyncSession
     ) -> UserOrm:
         try:
@@ -23,6 +28,7 @@ class UserReposetory:
                 last_name=last_name,
                 email=email,
                 hashed_password=hashed_password,
+                role=role,
             )
             session.add(new_user)
             await session.flush()  # занести изм в бд предварительно и получить id
@@ -30,7 +36,9 @@ class UserReposetory:
 
             return new_user
         except IntegrityError:
-            raise ValueError(f"Нельзя создать пользователя! Пользователь с email={email} уже существует")
+            raise
+        except Exception as e:
+            logger.warning(f"Unknown error {e}")
 
     @staticmethod
     async def delete_user_by_id(user_id: int, session: AsyncSession) -> UserOrm:
@@ -89,14 +97,15 @@ class UserReposetory:
         return [user for user in users]
 
     @staticmethod
-    async def get_user_by_email(user_email: str, session: AsyncSession) -> UserOrm:
-        query = select(UserOrm).where(UserOrm.email == user_email)
+    async def get_user_by_email(user_email: str, session: AsyncSession) -> UserOrm | None:
         try:
+            query = select(UserOrm).where(UserOrm.email == user_email)
             result = await session.execute(query)
-            user = result.scalar_one()
+            user = result.scalar_one_or_none()
             return user
-        except NoResultFound:
-            raise ValueError(f"Пользователь с email={user_email} не найден")
+        except MultipleResultsFound as e:
+            logger.warning(f"MultipleResultsFound on {user_email}: {e}")
+            raise
 
     @staticmethod
     async def get_user_by_id(user_id: int, session: AsyncSession) -> UserOrm:
@@ -106,4 +115,4 @@ class UserReposetory:
             user = result.scalar_one()  # выбросит NoResultFound если нет
             return user
         except NoResultFound:
-            raise ValueError(f"Пользователь с id={user_id} не найден")
+            raise
