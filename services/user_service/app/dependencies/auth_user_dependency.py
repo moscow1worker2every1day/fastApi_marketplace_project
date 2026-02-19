@@ -2,12 +2,14 @@ from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+# from jwt.exceptions import InvalidTokenError
 
 from app.services.user_service import UserService
 from app.services.auth_service import AuthService
 from app.services.token_service import TOKEN_TYPE_FIELD, ACCESS_TOKEN_TYPE, REFRESH_TOKEN_TYPE
 from app.schemas.user import  GetUser
 from app.storage.postgresql.connection import get_session, SessionFactory
+from app.config import UserRoles
 
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
@@ -19,7 +21,7 @@ async def get_current_token_payload(
 ) -> dict:
     try:
         payload = AuthService.decode_jwt(token=token)
-    except InvalidTokenError as e:
+    except Exception as e:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
                             detail="Invalid Token Error")
     return payload

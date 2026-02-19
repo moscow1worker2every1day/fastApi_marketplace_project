@@ -26,7 +26,7 @@ async def get_user(
     current_user: Annotated[GetUser, Depends(get_current_active_user)]
 ):
     '''
-    если нужно чтобы пользователя мог искать только самого себя
+    если нужно чтобы пользователь мог искать только самого себя
     if current_user.id != user_id:
         raise HTTPException(status_code=403, detail="Forbidden")
     '''

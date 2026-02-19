@@ -43,12 +43,16 @@ class UserReposetory:
     @staticmethod
     async def delete_user_by_id(user_id: int, session: AsyncSession) -> UserOrm:
         try:
-            delete_user = await UserReposetory.get_user_by_id(user_id=user_id, session=session)
+            delete_user = await UserReposetory.get_user_by_id(
+                user_id=user_id, 
+                session=session
+            )
             await session.delete(delete_user)
             await session.commit()
             return delete_user
         except ValueError:
-            raise ValueError(f"Невозможно удалить данные! Пользователь с id={user_id} не найден")
+            raise ValueError(f"Невозможно удалить данные! \
+                Пользователь с id={user_id} не найден")
 
     @staticmethod
     async def update_user_name(user_id: int,
@@ -57,7 +61,10 @@ class UserReposetory:
                                last_name: Optional[str] = None
                                ) -> UserOrm:
         try:
-            update_user = await UserReposetory.get_user_by_id(user_id=user_id, session=session)
+            update_user = await UserReposetory.get_user_by_id(
+                user_id=user_id, 
+                session=session
+            )
 
             if first_name is not None:
                 update_user.first_name = first_name

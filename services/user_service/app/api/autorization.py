@@ -1,7 +1,6 @@
 from typing import Annotated
 
-from jwt.exceptions import InvalidTokenError
-from fastapi import Depends, APIRouter, HTTPException, status
+from fastapi import Depends, APIRouter
 
 from app.schemas.user import GetUser
 from app.schemas.auth import Token
@@ -34,7 +33,7 @@ async def login_for_access_token(
 async def login_refresh_token(
     current_user: Annotated[GetUser, Depends(get_current_user_for_refresh)]
 ):
-    access_token = create_access_token(current_user)
+    access_token = TokenService.create_access_token(current_user)
     return Token(
          access_token=access_token
     )

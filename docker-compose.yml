@@ -2,38 +2,55 @@ services:
   postgres:
     image: postgres:16
     container_name: postgres
-    restart: always
+    restart: unless-stopped
     environment:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
       POSTGRES_DB: users_test_db
     ports:
       - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -h localhost -d users_test_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     networks:
       - backend
 
   rabbitmq:
     image: rabbitmq:3-management
     container_name: rabbitmq
-    restart: always
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: app_user
+      RABBITMQ_DEFAULT_PASS: app_password
     ports:
       - "5672:5672"
       - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_running"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     networks:
       - backend
-    environment:
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
 
   redis:
     image: redis:7
     container_name: redis
-    restart: always
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
-    command: [ "redis-server", "--appendonly", "yes" ]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
     networks:
       - backend
 
@@ -41,13 +58,12 @@ services:
     build:
       context: ./services/user_service
     container_name: user_service
-    restart: always
+    restart: unless-stopped
     env_file:
       - ./services/user_service/.env
-    volumes:
-      - ./services/user_service:/code
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     ports:
       - "8000:8000"
     networks:
@@ -57,11 +73,12 @@ services:
     build:
       context: ./services/product_service
     container_name: product_service
-    restart: always
+    restart: unless-stopped
     env_file:
       - ./services/product_service/.env
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     ports:
       - "8001:8001"
     networks:
@@ -71,17 +88,20 @@ services:
     build:
       context: ./services/cart_service
     container_name: cart_service
-    restart: always
+    restart: unless-stopped
     env_file:
       - ./services/cart_service/.env
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
     ports:
       - "8002:8002"
     networks:
       - backend
+
 volumes:
+  postgres_data:
   redis_data:
 
 networks:
-    backend:
+  backend:

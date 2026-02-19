@@ -9,7 +9,7 @@ from app.storage.postgresql.models.base_model import Base
 
 class DataBaseService:
     @staticmethod
-    async def check_connection(log=None, retries=0, delay=0) -> bool:
+    async def check_connection(log=None, retries=10, delay=2) -> bool:
         for i in range(retries):
             try:
                 async with engine.connect() as conn:

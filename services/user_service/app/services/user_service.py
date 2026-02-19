@@ -1,6 +1,7 @@
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, MultipleResultsFound, NoResultFound
+
 from typing import List
 
 from app.storage.postgresql.repositories.user_repository import UserReposetory
@@ -13,8 +14,8 @@ class UserService:
     async def get_user_by_id(user_id: int, session: AsyncSession) -> GetUser:
         try:
             user_orm = await UserReposetory.get_user_by_id(user_id, session)
-            return GetUser.from_orm(user_orm)
-        except Exception as e:
+            return GetUser.model_validate(user_orm)
+        except NoResultFound as e:
             # Преобразуем внутреннюю ошибку репозитория в HTTP-ответ
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -32,11 +33,11 @@ class UserService:
         try:
             user_orm = await UserReposetory.get_user_by_email(user_email=email, session=session)
             if user_orm:
-                return GetUser.from_orm(user_orm)
-        except Exception as e:
+                return GetUser.model_validate(user_orm)
+        except MultipleResultsFound as e:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail=f"Incorrect data {e}"
+                detail=f"Incorrect data" 
             )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -47,7 +48,7 @@ class UserService:
     async def delete_user(user_id: int, session: AsyncSession) -> GetUser:
         try:
             deleted_user_orm = await UserReposetory.delete_user_by_id(user_id, session)
-            return GetUser.from_orm(deleted_user_orm)
+            return GetUser.model_validate(deleted_user_orm)
         except ValueError as e:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -63,7 +64,7 @@ class UserService:
                 first_name=data.first_name,
                 last_name=data.last_name
             )
-            return GetUser.from_orm(updated_user_orm)
+            return GetUser.model_validate(updated_user_orm)
         except ValueError as e:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -78,7 +79,7 @@ class UserService:
                 new_email=data.email,
                 session=session
             )
-            return GetUser.from_orm(updated_user_orm)
+            return GetUser.model_validate(updated_user_orm)
         except ValueError as e:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -93,7 +94,7 @@ class UserService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=str("Пользователей нет")
             )
-        return [GetUser.from_orm(user) for user in users_orm]
+        return [GetUser.model_validate(user) for user in users_orm]
 
     @staticmethod
     async def create_new_user(data: NewUser, session) -> GetUser:
@@ -108,7 +109,7 @@ class UserService:
                 role=data.role,
                 session=session
             )
-            return GetUser.from_orm(new_user_orm)
+            return GetUser.model_validate(new_user_orm)
         except IntegrityError:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
