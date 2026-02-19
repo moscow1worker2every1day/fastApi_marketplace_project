@@ -1,9 +1,12 @@
-from app.storage.postgresql.repositories.user_repository import UserReposetory
-from app.schemas.user import NewUser, GetUser, UpdateUserName, UpdateUserEmail, GetNewUser
-
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional, List
+from sqlalchemy.exc import IntegrityError, MultipleResultsFound, NoResultFound
+
+from typing import List
+
+from app.storage.postgresql.repositories.user_repository import UserReposetory
+from app.schemas.user import NewUser, GetUser, UpdateUserName, UpdateUserEmail
+from app.services.auth_service import AuthService
 
 
 class UserService:
@@ -11,30 +14,41 @@ class UserService:
     async def get_user_by_id(user_id: int, session: AsyncSession) -> GetUser:
         try:
             user_orm = await UserReposetory.get_user_by_id(user_id, session)
-            return GetUser.from_orm(user_orm)
-        except ValueError as e:
+            return GetUser.model_validate(user_orm)
+        except NoResultFound as e:
             # Преобразуем внутреннюю ошибку репозитория в HTTP-ответ
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=str(e)
+                detail=f"User id={user_id} not found"
             )
 
     @staticmethod
-    async def get_user_by_email(email: str, session: AsyncSession) -> GetNewUser:
+    async def get_user_by_email(email: str, session: AsyncSession) -> GetUser:
+        """
+        Validate if email exist in db and get information
+        :param email: str
+        :param session: session database
+        :return: user: GetUser
+        """
         try:
             user_orm = await UserReposetory.get_user_by_email(user_email=email, session=session)
-            return GetNewUser.from_orm(user_orm)
-        except ValueError as e:
+            if user_orm:
+                return GetUser.model_validate(user_orm)
+        except MultipleResultsFound as e:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=str(e)
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Incorrect data" 
             )
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Could not find user with email '{email}'"
+        )
 
     @staticmethod
     async def delete_user(user_id: int, session: AsyncSession) -> GetUser:
         try:
             deleted_user_orm = await UserReposetory.delete_user_by_id(user_id, session)
-            return GetUser.from_orm(deleted_user_orm)
+            return GetUser.model_validate(deleted_user_orm)
         except ValueError as e:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -50,7 +64,7 @@ class UserService:
                 first_name=data.first_name,
                 last_name=data.last_name
             )
-            return GetUser.from_orm(updated_user_orm)
+            return GetUser.model_validate(updated_user_orm)
         except ValueError as e:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -65,7 +79,7 @@ class UserService:
                 new_email=data.email,
                 session=session
             )
-            return GetUser.from_orm(updated_user_orm)
+            return GetUser.model_validate(updated_user_orm)
         except ValueError as e:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -80,20 +94,24 @@ class UserService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=str("Пользователей нет")
             )
-        return [GetUser.from_orm(user) for user in users_orm]
+        return [GetUser.model_validate(user) for user in users_orm]
 
     @staticmethod
-    async def create_new_user(data: NewUser, session) -> GetNewUser:
-        hashed_password = data.password
+    async def create_new_user(data: NewUser, session) -> GetUser:
+        hashed_password = AuthService.hash_password(data.password).decode("utf-8")
+
         try:
-            new_user_orm = await UserReposetory.create_new_user(first_name=data.first_name,
-                                                                last_name=data.last_name,
-                                                                email=data.email,
-                                                                hashed_password=hashed_password,
-                                                                session=session)
-            return GetNewUser.from_orm(new_user_orm)
-        except ValueError as e:
+            new_user_orm = await UserReposetory.create_new_user(
+                first_name=data.first_name,
+                last_name=data.last_name,
+                email=data.email,
+                hashed_password=hashed_password,
+                role=data.role,
+                session=session
+            )
+            return GetUser.model_validate(new_user_orm)
+        except IntegrityError:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail=str(e)
+                detail=f"Could not create user, email={data.email} already exist"
             )

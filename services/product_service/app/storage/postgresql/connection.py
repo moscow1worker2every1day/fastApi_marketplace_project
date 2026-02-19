@@ -7,7 +7,9 @@ import os
 load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
-
+print(DATABASE_URL)
+print()
+print()
 engine = create_async_engine(
     DATABASE_URL,
     poolclass=AsyncAdaptedQueuePool,

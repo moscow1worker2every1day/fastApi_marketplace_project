@@ -8,7 +8,7 @@ from app.storage.postgresql.models import Base
 
 class DataBaseService:
     @staticmethod
-    async def check_connection(*, log=None, retries=0, delay=0):
+    async def check_connection(*, log=None, retries=10, delay=2):
         for i in range(retries):
             try:
                 async with engine.connect() as conn: # connect требует явного коммита, а нам тут не нужно коммитить
@@ -25,8 +25,13 @@ class DataBaseService:
 
     @staticmethod
     async def create_tables(*, log=None):
-        async with engine.begin() as connection: # делает сам коммит
-            #await connection.run_sync(Base.metadata.drop_all)
-            await connection.run_sync(Base.metadata.create_all)
-            if log:
-                log.info("Created database tables")
+        async with engine.connect() as connection: # делает сам коммит
+            try:
+            # await connection.run_sync(Base.metadata.drop_all)
+                await connection.run_sync(Base.metadata.create_all)
+                if log:
+                    log.info("Created database tables")
+            except Exception as e:
+                if log:
+                    log.warning(f"Error create database tables {e}")
+                return False

@@ -20,7 +20,7 @@ async def lifespan(app: FastAPI):
         await DataBaseService.create_tables(log=logger)
         yield
     except Exception as e:
-        logger.error(f"Startup failed: {e}")
+        logger.error(f"Startup user-service: database failed with message '{e}' ")
         raise
 
 

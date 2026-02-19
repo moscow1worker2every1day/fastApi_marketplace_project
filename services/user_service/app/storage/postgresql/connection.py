@@ -1,15 +1,13 @@
-import os
-from dotenv import load_dotenv
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.pool import AsyncAdaptedQueuePool
 from typing import AsyncGenerator
 
-load_dotenv()
+from app.config import settings
 
-DATABASE_URL = os.getenv("DATABASE_URL_LOCAL")
+print(settings.DB_URL)
 
 engine = create_async_engine(
-    DATABASE_URL,
+    settings.DB_URL,
     poolclass=AsyncAdaptedQueuePool,
     pool_size=10,
     max_overflow=20

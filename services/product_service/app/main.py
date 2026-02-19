@@ -17,7 +17,7 @@ async def lifespan(app: FastAPI):
         yield
         log.info("PRODUCT SERVICE STOPPED")
     except Exception as e:
-        log.error(f"Startup failed: {e}")
+        log.error(f"Startup product-service: database connection failed with message {e}")
         raise
 
 app = FastAPI(

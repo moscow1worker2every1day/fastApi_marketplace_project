@@ -5,7 +5,7 @@
       <sourceFolder url="file://$MODULE_DIR$/services/cart_service" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/services/product_service" isTestSource="false" />
     </content>
-    <orderEntry type="jdk" jdkName="Python 3.12 (.venv)" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="Python 3.12 (fastApiProject)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
 </module>
