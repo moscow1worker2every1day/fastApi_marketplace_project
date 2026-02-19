@@ -5,7 +5,6 @@ from fastapi import Depends, APIRouter
 from app.schemas.user import GetUser
 from app.schemas.auth import Token
 from app.services.token_service import TokenService
-from app.config import UserRoles
 from app.dependencies.auth_user_dependency import validate_user, get_current_user_for_refresh
 
 router = APIRouter(prefix="/auth", tags=["JWT-auth"])

@@ -15,7 +15,7 @@ class UserService:
         try:
             user_orm = await UserReposetory.get_user_by_id(user_id, session)
             return GetUser.model_validate(user_orm)
-        except NoResultFound as e:
+        except NoResultFound:
             # Преобразуем внутреннюю ошибку репозитория в HTTP-ответ
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -34,10 +34,10 @@ class UserService:
             user_orm = await UserReposetory.get_user_by_email(user_email=email, session=session)
             if user_orm:
                 return GetUser.model_validate(user_orm)
-        except MultipleResultsFound as e:
+        except MultipleResultsFound:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail=f"Incorrect data" 
+                detail="Incorrect data" 
             )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

@@ -1,5 +1,4 @@
 import pytest
-from unittest.mock import AsyncMock
 from fastapi import HTTPException, status
 from tests.unit.fake_users import UserFactory
 from sqlalchemy.exc import MultipleResultsFound, NoResultFound

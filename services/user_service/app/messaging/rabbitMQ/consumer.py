@@ -12,7 +12,7 @@ async def get_category_msq():
         async with RabbitMQSession() as channel:
             routing_key = "category"
 
-            queue = await channel.declare_queue("category")
+            queue = await channel.declare_queue(routing_key)
 
             await queue.consume(on_message, no_ack=True)
             return True

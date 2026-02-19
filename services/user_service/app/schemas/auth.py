@@ -1,5 +1,3 @@
-import os
-
 from pydantic import BaseModel, field_validator
 from pathlib import Path
 

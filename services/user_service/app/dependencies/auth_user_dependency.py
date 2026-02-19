@@ -21,7 +21,7 @@ async def get_current_token_payload(
 ) -> dict:
     try:
         payload = AuthService.decode_jwt(token=token)
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
                             detail="Invalid Token Error")
     return payload
@@ -58,8 +58,8 @@ async def get_current_user_from_db(session: SessionDep, payload: dict) -> GetUse
         raise HTTPException(status_code=401, detail="Token invalid")
     try:
         user = await UserService.get_user_by_id(session=session, user_id=int(user_id))
-    except Exception as e:
-        raise HTTPException(status_code=404, detail=f"Token invalid: current user deleted or not found")
+    except Exception:
+        raise HTTPException(status_code=404, detail="Token invalid: current user deleted or not found")
     return user
 
 
