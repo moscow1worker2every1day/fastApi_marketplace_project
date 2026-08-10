@@ -1,21 +1,18 @@
 from typing import Annotated
 
-from fastapi import Depends, APIRouter
-
-from app.schemas.user import GetUser
+from app.dependencies.auth_user_dependency import (
+    get_current_user_for_refresh, validate_user)
 from app.schemas.auth import Token
+from app.schemas.user import GetUser
 from app.services.token_service import TokenService
-from app.config import UserRoles
-from app.dependencies.auth_user_dependency import validate_user, get_current_user_for_refresh
+from fastapi import APIRouter, Depends
 
 router = APIRouter(prefix="/auth", tags=["JWT-auth"])
 
 
-
-
 @router.post("/login", response_model=Token)
 async def login_for_access_token(
-        current_user: Annotated[GetUser, Depends(validate_user)]
+    current_user: Annotated[GetUser, Depends(validate_user)],
 ):
     """
     Get username(email) and password
@@ -24,16 +21,12 @@ async def login_for_access_token(
     """
     access_token = TokenService.create_access_token(current_user)
     refresh_token = TokenService.create_refresh_token(current_user)
-    return Token(
-        access_token=access_token,
-        refresh_token=refresh_token
-    )
+    return Token(access_token=access_token, refresh_token=refresh_token)
+
 
 @router.post("/refresh", response_model=Token, response_model_exclude_none=True)
 async def login_refresh_token(
-    current_user: Annotated[GetUser, Depends(get_current_user_for_refresh)]
+    current_user: Annotated[GetUser, Depends(get_current_user_for_refresh)],
 ):
     access_token = TokenService.create_access_token(current_user)
-    return Token(
-         access_token=access_token
-    )
+    return Token(access_token=access_token)
