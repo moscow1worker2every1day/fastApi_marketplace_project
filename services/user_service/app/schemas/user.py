@@ -39,7 +39,6 @@ class BaseUser(BaseModel):
 
 class NewUser(BaseUser):
     password: str
-    active: bool | None = True
     model_config = ConfigDict(
         #strict=True,  # строгое соответсвие полям
         from_attributes=True,
@@ -48,13 +47,12 @@ class NewUser(BaseUser):
                 {
                     "first_name": "Anast",
                     "last_name": "Marti",
-                    "email": "st@mail.ru",
-                    "password": "pass",
+                    "email": "1@mail.ru",
+                    "password": "1",
                     "role": "user",
-                    "active": True
                 }
             ],
-            "required": ["first_name", "last_name", "email", "password", "active"]
+            "required": ["first_name", "last_name", "email", "password"]
         }
     )
 

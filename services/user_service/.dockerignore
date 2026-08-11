@@ -12,3 +12,4 @@ uv.lock
 pyproject.toml
 Dockerfile
 .dockerignore
+logs

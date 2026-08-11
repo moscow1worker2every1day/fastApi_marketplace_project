@@ -13,6 +13,7 @@ COPY app ./app
 COPY keys ./keys
 COPY alembic ./alembic
 COPY alembic.ini .
-COPY .app-version .
+# Scripts for users creation (develop)
+COPY scripts ./scripts
 
 ENV PYTHONPATH=/code

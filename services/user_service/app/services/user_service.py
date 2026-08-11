@@ -121,14 +121,14 @@ class UserService:
         users_orm = await UserRepository.get_all_users(session)
         if not users_orm:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Пользователей нет"
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No users found"
             )
         return [UserService._to_get_user(u) for u in users_orm]
 
     @staticmethod
     async def create_new_user(data: NewUser, session) -> GetUser:
-        hashed_password = AuthService.hash_password(
-            data.password).decode("utf-8")
+        hashed_password = AuthService.hash_password(data.password).decode("utf-8")
         try:
             new_user_orm = await UserRepository.create_new_user(
                 first_name=data.first_name,
@@ -143,4 +143,10 @@ class UserService:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail=f"Could not create user, email={data.email} already exist",
+            )
+        except Exception as e:
+            users_logger.error(f"Cannot create new user: {type(e).__name__} - {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Cannot create new user: {type(e).__name__} - {e}",
             )

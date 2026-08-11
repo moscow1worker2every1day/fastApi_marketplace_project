@@ -1,4 +1,3 @@
-import logging
 from typing import Optional
 from uuid import UUID
 
@@ -6,11 +5,11 @@ from app.storage.postgresql.models.user_model import UserOrm
 from app.enums import UserRoles
 
 
+from app.log import users_logger
 from sqlalchemy import select, delete
-from sqlalchemy.exc import IntegrityError, NoResultFound, MultipleResultsFound
+from sqlalchemy.exc import IntegrityError, MultipleResultsFound
 from sqlalchemy.ext.asyncio import AsyncSession
 
-logger = logging.getLogger(__name__)
 
 class UserRepository:
 
@@ -40,7 +39,7 @@ class UserRepository:
             raise
         except Exception as e:
             await session.rollback()
-            logger.error(f"Cannot create new user: {type(e).__name__} - {e}")
+            users_logger.error(f"Cannot create new user: {type(e).__name__} - {e}")
             raise
 
     @staticmethod
@@ -52,7 +51,7 @@ class UserRepository:
             return True
         except Exception as e:
             await session.rollback()
-            logger.error(f"Cannot delete user: User with id={user_id}: {type(e).__name__} - {e}")
+            users_logger.error(f"Cannot delete user: User with id={user_id}: {type(e).__name__} - {e}")
             raise
 
     @staticmethod
@@ -78,7 +77,7 @@ class UserRepository:
             return update_user
         except Exception as e:
             await session.rollback()
-            logger.error(f"Cannot update user name: User with id={user_id}: {type(e).__name__} - {e}")
+            users_logger.error(f"Cannot update user name: User with id={user_id}: {type(e).__name__} - {e}")
             raise
 
     @staticmethod
@@ -100,7 +99,7 @@ class UserRepository:
 
         except Exception as e:
             await session.rollback()
-            logger.error(f"Cannot update user email: User with id={user_id}: {type(e).__name__} - {e}")
+            users_logger.error(f"Cannot update user email: User with id={user_id}: {type(e).__name__} - {e}")
             raise
 
     @staticmethod
@@ -118,7 +117,7 @@ class UserRepository:
             user = result.scalar_one_or_none()
             return user
         except MultipleResultsFound as e:
-            logger.error(f"MultipleResultsFound on {user_email}: {type(e).__name__} - {e}")
+            users_logger.error(f"MultipleResultsFound on {user_email}: {type(e).__name__} - {e}")
             raise
 
     @staticmethod

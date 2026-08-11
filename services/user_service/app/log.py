@@ -9,17 +9,19 @@ from app.constants import SLOW_REQUEST_THRESHOLD_SEC
 
 def _patch_record(record):
     """Ensure format keys always exist outside request context."""
-    record["extra"].setdefault("request_id", "-")
     record["extra"].setdefault("processing_time", 0)
 
 
 def configure_logging():
     """Configure logging for the application.
 
-    Один вызов logger.info/error может попасть в несколько sinks:
-    - requests.log  — все записи с route_group=requests
-    - slow_requests — те же записи, если processing_time > порога
-    - errors.log    — любые записи уровня ERROR+ (из любого route_group)
+    Distribution by files (one call can fall into several sinks):
+    - auth.log           — route_group=auth
+    - users.log          — route_group=users
+    - requests.log       — all requests (route_group=requests)
+    - slow_requests.log  — route_group=requests and processing_time > threshold
+    - startup.log        — route_group=startup
+    - errors.log         — any ERROR/CRITICAL (without filter by route_group)
     """
     logger.remove()
     logger.configure(patcher=_patch_record)
@@ -75,6 +77,7 @@ def configure_logging():
     )
 
 
-startup_logger = logger.bind(route_group="startup", request_id="-")
-auth_logger = logger.bind(route_group="auth", request_id="-")
-users_logger = logger.bind(route_group="users", request_id="-")
+startup_logger = logger.bind(route_group="startup")
+auth_logger = logger.bind(route_group="auth")
+users_logger = logger.bind(route_group="users")
+request_logger = logger.bind(route_group="requests")

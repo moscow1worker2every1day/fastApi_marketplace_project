@@ -37,7 +37,6 @@ OPENAPI_TAGS = [
 REQUEST_LOG_FORMAT = (
         "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> -- "
         "<level>{level}</level> -- "
-        "<cyan>{extra[request_id]}</cyan> -- "
         "<white>{message}</white>"
     )
 
@@ -45,7 +44,6 @@ REQUEST_LOG_FORMAT = (
 FILE_LOG_FORMAT = (
         "{time:YYYY-MM-DD HH:mm:ss.SSS} -- "
         "{level} -- "
-        "{extra[request_id]} -- "
         "{message}"
     )
 
