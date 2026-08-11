@@ -1,10 +1,11 @@
 from datetime import datetime
+from uuid import UUID
 from pydantic import BaseModel, field_validator, EmailStr
 from pydantic.config import ConfigDict
 from fastapi import Form
 from typing import Annotated
 
-from app.config import UserRoles
+from app.enums import UserRoles
 
 
 class BaseUser(BaseModel):
@@ -17,9 +18,16 @@ class BaseUser(BaseModel):
         from_attributes=True,
         json_schema_extra={
             "examples": [
-                {"first_name": "Anastasia",
-                 "last_name": "Marti",
-                 }]})
+                {
+                    "first_name": "Anastasia",
+                    "last_name": "Marti",
+                    "email": "st@mail.ru",
+                    "role": "user",
+                    "active": True
+                }
+            ]
+        }
+    )
 
     @field_validator("first_name", "last_name")
     @classmethod
@@ -37,31 +45,41 @@ class NewUser(BaseUser):
         from_attributes=True,
         json_schema_extra={
             "examples": [
-                {"first_name": "Anast",
-                 "last_name": "Marti",
-                 "password": "pass",
-                 "email": "st@mail.ru",
-                 }]})
+                {
+                    "first_name": "Anast",
+                    "last_name": "Marti",
+                    "email": "st@mail.ru",
+                    "password": "pass",
+                    "role": "user",
+                    "active": True
+                }
+            ],
+            "required": ["first_name", "last_name", "email", "password", "active"]
+        }
+    )
 
 
 class GetUser(BaseUser):
     updated_at: datetime
     created_at: datetime
     hashed_password: str
-    id: int
+    id: UUID
     active: bool
 
 
 class UpdateUserName(BaseModel):
-    id: int
     first_name: str | None = None
     last_name: str | None = None
 
 
 class UpdateUserEmail(BaseModel):
-    id: int
+    id: UUID
     email: EmailStr
 
     model_config = ConfigDict(
         from_attributes=True
     )
+
+class ResponseMessage(BaseModel):
+    user_id: UUID
+    message: str

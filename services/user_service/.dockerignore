@@ -4,7 +4,8 @@ __pycache__
 .pytest_cache
 tests
 .env
-.test.env
+.env.test
+.env.docker
 .git
 *.md
 uv.lock

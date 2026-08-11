@@ -1,86 +1,57 @@
-from typing import Annotated
+import uuid
 
-from app.dependencies.auth_user_dependency import (get_current_active_user,
-                                                   get_current_user_role)
-from app.dependencies.user_service_dependency import UserServiceDep
-from app.schemas.user import GetUser, NewUser, UpdateUserEmail, UpdateUserName
-from app.storage.postgresql.connection import SessionFactory, get_session
-from fastapi import APIRouter, Depends, status
+from app.dependencies.auth_user_dependency import AdminUserDep, SelfOrAdminUserDep, TargetUserDep
+from app.schemas.user import GetUser, ResponseMessage, UpdateUserEmail, UpdateUserName
+from app.storage.postgresql.connection import SessionDep
+from fastapi import APIRouter
+from app.services.user_service import UserService
+
 
 router = APIRouter(prefix="/users")
-
-SessionDep = Annotated[SessionFactory, Depends(get_session)]
-
-
-@router.get("/my_account/", response_model=GetUser, tags=["User Account"])
-async def get_user_account(
-    current_user: Annotated[GetUser, Depends(get_current_active_user)],
-):
-    return current_user
 
 
 @router.get("/{user_id}", response_model=GetUser, tags=["CRUD"])
 async def get_user(
-    user_id: int,
     session: SessionDep,
-    user_service: UserServiceDep,
-    current_user: Annotated[GetUser, Depends(get_current_active_user)],
+    current_user: SelfOrAdminUserDep,
+    target_user: TargetUserDep,
 ):
-    """
-    если нужно чтобы пользователь мог искать только самого себя
-    if current_user.id != user_id:
-        raise HTTPException(status_code=403, detail="Forbidden")
-    """
-    user = await user_service.get_user_by_id(user_id=user_id, session=session)
-    return user
+    """Get user by id"""
+    return await UserService.get_user_by_id(session=session, user_id=target_user.id)
 
 
 @router.get("/", response_model=list[GetUser], tags=["CRUD"])
 async def get_all_users(
     session: SessionDep,
-    user_service: UserServiceDep,
-    current_user: Annotated[GetUser, Depends(get_current_user_role)],
+    current_user: AdminUserDep,
 ):
-    users = await user_service.get_all_users(session=session)
-    return users
+    return await UserService.get_all_users(session=session)
 
 
-@router.post(
-    "/", response_model=GetUser, status_code=status.HTTP_201_CREATED, tags=["CRUD"]
-)
-async def add_user(data: NewUser, session: SessionDep, user_service: UserServiceDep):
-    user = await user_service.create_new_user(data=data, session=session)
-    return user
-
-
-@router.delete("/{user_id}", response_model=GetUser, tags=["CRUD"])
+@router.delete("/{user_id}", response_model=ResponseMessage, tags=["CRUD"])
 async def delete_user(
-    user_id: int,
+    target_user: TargetUserDep,
     session: SessionDep,
-    user_service: UserServiceDep,
-    current_user: Annotated[GetUser, Depends(get_current_active_user)],
+    current_user: SelfOrAdminUserDep,
 ):
-    user = await user_service.delete_user(user_id=user_id, session=session)
-    return user
+    return await UserService.delete_user(user_id=target_user.id, session=session)
 
 
 @router.put("/{user_id}/name", response_model=GetUser, tags=["CRUD"])
 async def update_user_name(
+    target_user: TargetUserDep,
     data: UpdateUserName,
     session: SessionDep,
-    user_service: UserServiceDep,
-    current_user: Annotated[GetUser, Depends(get_current_active_user)],
+    current_user: SelfOrAdminUserDep,
 ):
-    updated_user = await user_service.update_user_name(data=data, session=session)
-    return updated_user
+    return await UserService.update_user_name(user_id=target_user.id, data=data, session=session)
 
 
 @router.put("/{user_id}/email", response_model=GetUser, tags=["CRUD"])
 async def update_user_email(
+    target_user: TargetUserDep,
     data: UpdateUserEmail,
     session: SessionDep,
-    user_service: UserServiceDep,
-    current_user: Annotated[GetUser, Depends(get_current_active_user)],
+    current_user: SelfOrAdminUserDep,
 ):
-    updated_user = await user_service.update_user_email(data=data, session=session)
-    return updated_user
+    return await UserService.update_user_email(user_id=target_user.id, data=data, session=session)

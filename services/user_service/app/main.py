@@ -1,21 +1,18 @@
-import logging
 from contextlib import asynccontextmanager
 
 from app.api.autorization import router as auth_router
+from app.api.user_accounts import router as user_accounts_router
 from app.api.users import router as user_router
-from app.messaging.rabbitMQ.consumer import get_category_msq
-from app.middlewares.logging import create_logging_middleware
+from app.middlewares.middleware import log_requests
 from app.storage.postgresql.connection_service import DataBaseService
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from loguru import logger
+from app.constants import OPENAPI_DESCRIPTION, OPENAPI_TAGS
+from app.config import settings
+from app.log import configure_logging, startup_logger
+from app.storage.postgresql.connection import DatabaseManager
 
-from app.constants import OPENAPI_TAGS
-from app.log import configure_logging
-from app.utils import _read_version
 
-
-APP_VERSION = _read_version()
 configure_logging()
 
 
@@ -25,50 +22,49 @@ async def lifespan(app: FastAPI):
     Lifespan for the application.
     Checking the connection to the database and creating tables.
     """
-    logger.info("Startup user-service:")
+    startup_logger.info("Startup user-service")
     try:
-        logger.info("Checking the database connection...")
-        await DataBaseService.check_connection()
-        await DataBaseService.run_migrations()
+        async with DatabaseManager.session_factory() as session:
+            startup_logger.info("Checking the database connection...")
+            await DataBaseService.check_connection(session)
+            await DataBaseService.run_migrations(session)
     except Exception as e:
-        logger.error(
+        startup_logger.error(
             "Connection to the database failed: "
-            f"{type(e).__name__} - {e}."
+            f"{type(e).__name__} - {e}. "
             "Shuting down service..."
         )
         raise
 
-    async with DataBaseService.async_session_factory() as session:
+    async with DatabaseManager.session_factory() as session:
         try:
             pass
             #await DatabaseMarkerService.mark_database(session)
-        except Exception:
-            logger.error(
+        except Exception as e:
+            startup_logger.error(
                 "Failed to mark the database: "
-                f"{type(e).__name__} - {e}."
+                f"{type(e).__name__} - {e}. "
                 "Shuting down service..."
             )
             raise
 
-    logger.info("Service is ready to accept requests.")
+    startup_logger.info("Service is ready to accept requests.")
 
     yield
 
-    logger.info("Shuting down service...")
+    startup_logger.info("Shuting down service...")
 
 
-app = FastAPI(
+app = FastAPI( 
     lifespan=lifespan,
     title="User Service",
-    description=(
-        "REST API for users authorization with JWT authentication "
-        "and management with RBAC.",
-    ),
-    version=APP_VERSION,
+    description=OPENAPI_DESCRIPTION,
+    version=settings.app.version,
     openapi_tags=OPENAPI_TAGS,
 )
 
 app.include_router(user_router)
+app.include_router(user_accounts_router)
 app.include_router(auth_router)
 
 app.add_middleware(
@@ -78,8 +74,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-app.middleware("http")(create_logging_middleware(logging))
-#app.add_middleware(LogRequestMiddleware)
+app.middleware("http")(log_requests)
 
 # app.add_exception_handler(
 #     RequestValidationError,
@@ -103,7 +98,7 @@ async def healthcheck():
     """
     return {
         "status": "ok",
-        "version": APP_VERSION,
+        "version": settings.app.version,
     }
 
 

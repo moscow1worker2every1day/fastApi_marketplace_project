@@ -42,4 +42,4 @@ class DatabaseManager:
                 await session.close()
 
 
-session_dep = Annotated[AsyncSession, Depends(DatabaseManager.get_session)]
+SessionDep = Annotated[AsyncSession, Depends(DatabaseManager.get_session)]

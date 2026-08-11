@@ -1,17 +1,18 @@
 import logging
 from typing import Optional
+from uuid import UUID
 
 from app.storage.postgresql.models.user_model import UserOrm
-from app.config import UserRoles
+from app.enums import UserRoles
 
 
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.exc import IntegrityError, NoResultFound, MultipleResultsFound
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
-class UserReposetory:
+class UserRepository:
 
     @staticmethod
     async def create_new_user(
@@ -31,39 +32,40 @@ class UserReposetory:
                 role=role,
             )
             session.add(new_user)
-            await session.flush()  # занести изм в бд предварительно и получить id
             await session.commit()
-
+            await session.refresh(new_user)
             return new_user
         except IntegrityError:
+            await session.rollback()
             raise
         except Exception as e:
-            logger.warning(f"Unknown error {e}")
+            await session.rollback()
+            logger.error(f"Cannot create new user: {type(e).__name__} - {e}")
+            raise
 
     @staticmethod
-    async def delete_user_by_id(user_id: int, session: AsyncSession) -> UserOrm:
+    async def delete_user_by_id(user_id: UUID, session: AsyncSession) -> bool:
         try:
-            delete_user = await UserReposetory.get_user_by_id(
-                user_id=user_id, 
-                session=session
-            )
-            await session.delete(delete_user)
+            query = delete(UserOrm).where(UserOrm.id == user_id)
+            await session.execute(query)
             await session.commit()
-            return delete_user
-        except ValueError:
-            raise ValueError(f"Невозможно удалить данные! \
-                Пользователь с id={user_id} не найден")
+            return True
+        except Exception as e:
+            await session.rollback()
+            logger.error(f"Cannot delete user: User with id={user_id}: {type(e).__name__} - {e}")
+            raise
 
     @staticmethod
-    async def update_user_name(user_id: int,
-                               session: AsyncSession,
-                               first_name: Optional[str] = None,
-                               last_name: Optional[str] = None
-                               ) -> UserOrm:
+    async def update_user_name(
+        user_id: UUID,
+        session: AsyncSession,
+        first_name: Optional[str] = None,
+        last_name: Optional[str] = None,
+    ) -> UserOrm:
         try:
-            update_user = await UserReposetory.get_user_by_id(
-                user_id=user_id, 
-                session=session
+            update_user = await UserRepository.get_user_by_id(
+                session=session,
+                user_id=user_id,
             )
 
             if first_name is not None:
@@ -74,27 +76,32 @@ class UserReposetory:
             await session.commit()
             await session.refresh(update_user)
             return update_user
-
-        except ValueError:
-            raise ValueError(f"Невозможно обновить данные! Пользователь с id={user_id} не найден")
+        except Exception as e:
+            await session.rollback()
+            logger.error(f"Cannot update user name: User with id={user_id}: {type(e).__name__} - {e}")
+            raise
 
     @staticmethod
-    async def update_user_email(user_id: int,
-                                new_email: str,
-                                session: AsyncSession
-                                ) -> UserOrm:
+    async def update_user_email(
+        user_id: UUID,
+        new_email: str,
+        session: AsyncSession,
+    ) -> UserOrm:
         try:
-            update_user = await UserReposetory.get_user_by_id(user_id=user_id, session=session)
+            update_user = await UserRepository.get_user_by_id(
+                session=session,
+                user_id=user_id,
+            )
 
             update_user.email = new_email
             await session.commit()
             await session.refresh(update_user)
             return update_user
 
-        except IntegrityError:
-            raise ValueError(f"Невозможно обновить email! Пользователь с email={new_email} уже существует")
-        except ValueError as e:
-            raise ValueError(f"Невозможно обновить email! {e}")
+        except Exception as e:
+            await session.rollback()
+            logger.error(f"Cannot update user email: User with id={user_id}: {type(e).__name__} - {e}")
+            raise
 
     @staticmethod
     async def get_all_users(session: AsyncSession) -> list[UserOrm]:
@@ -111,15 +118,12 @@ class UserReposetory:
             user = result.scalar_one_or_none()
             return user
         except MultipleResultsFound as e:
-            logger.warning(f"MultipleResultsFound on {user_email}: {e}")
+            logger.error(f"MultipleResultsFound on {user_email}: {type(e).__name__} - {e}")
             raise
 
     @staticmethod
-    async def get_user_by_id(user_id: int, session: AsyncSession) -> UserOrm:
+    async def get_user_by_id(session: AsyncSession, user_id: UUID) -> UserOrm:
         query = select(UserOrm).where(UserOrm.id == user_id)
-        try:
-            result = await session.execute(query)
-            user = result.scalar_one()  # выбросит NoResultFound если нет
-            return user
-        except NoResultFound:
-            raise
+        result = await session.execute(query)
+        user = result.scalar_one()
+        return user

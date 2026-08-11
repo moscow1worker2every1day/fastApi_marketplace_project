@@ -1,208 +1,162 @@
+# Compose подставляет ${VAR} из файла .env в корне проекта (рядом с этим файлом).
+# Runtime-настройки приложений — через env_file сервисов (services/*/.env.docker).
+
 services:
-  postgres:
+  postgres_user:
     image: postgres:16
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_PORT: ${POSTGRES_PORT}
-    ports:
-      - "${POSTGRES_PORT}:5432"
+    container_name: postgres_user
+    restart: unless-stopped
     env_file:
-      - ./services/user_service/.test.env
+      - ./services/user_service/.env.docker
+    environment:
+      POSTGRES_USER: ${USER_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${USER_POSTGRES_PASSWORD}
+      POSTGRES_DB: ${USER_POSTGRES_DB}
+    ports:
+      - "${USER_POSTGRES_PORT}:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_user_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -h localhost -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U ${USER_POSTGRES_USER} -h localhost -d ${USER_POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 5
     networks:
       - backend
 
-
+  # postgres_product:
+  #   image: postgres:16
+  #   container_name: postgres_product
+  #   restart: unless-stopped
+  #   env_file:
+  #     - ./services/product_service/.env.docker
+  #   environment:
+  #     POSTGRES_USER: ${PRODUCT_POSTGRES_USER}
+  #     POSTGRES_PASSWORD: ${PRODUCT_POSTGRES_PASSWORD}
+  #     POSTGRES_DB: ${PRODUCT_POSTGRES_DB}
+  #   ports:
+  #     - "${PRODUCT_POSTGRES_PORT}:5432"
+  #   volumes:
+  #     - postgres_product_data:/var/lib/postgresql/data
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U ${PRODUCT_POSTGRES_USER} -h localhost -d ${PRODUCT_POSTGRES_DB}"]
+  #     interval: 5s
+  #     timeout: 5s
+  #     retries: 5
+  #   networks:
+  #     - backend
 
   # rabbitmq:
-
   #   image: rabbitmq:3-management
-
   #   container_name: rabbitmq
-
   #   restart: unless-stopped
-
   #   environment:
-
   #     RABBITMQ_DEFAULT_USER: app_user
-
   #     RABBITMQ_DEFAULT_PASS: app_password
-
   #   ports:
-
   #     - "5672:5672"
-
   #     - "15672:15672"
-
   #   healthcheck:
-
   #     test: ["CMD", "rabbitmq-diagnostics", "check_running"]
-
   #     interval: 5s
-
   #     timeout: 5s
-
   #     retries: 5
-
   #   networks:
-
   #     - backend
-
-
 
   # redis:
-
   #   image: redis:7
-
   #   container_name: redis
-
   #   restart: unless-stopped
-
   #   command: ["redis-server", "--appendonly", "yes"]
-
   #   ports:
-
   #     - "6379:6379"
-
   #   volumes:
-
   #     - redis_data:/data
-
   #   healthcheck:
-
   #     test: ["CMD", "redis-cli", "ping"]
-
   #     interval: 5s
-
   #     timeout: 3s
-
   #     retries: 5
-
   #   networks:
-
   #     - backend
 
-
-
   user_service:
-
     build:
-
       context: ./services/user_service
-
-    container_name: ${CONTAINER_NAME}
-
+    container_name: user_service
     restart: unless-stopped
-
     env_file:
-
-      - ./services/user_service/.test.env
-
+      - ./services/user_service/.env.docker
+    environment:
+      APP_HOST: ${USER_APP_INTERNAL_HOST}
+      APP_INTERNAL_PORT: ${USER_APP_INTERNAL_PORT}
+      APP_RELOAD: ${USER_APP_RELOAD}
+      APP_WORKERS: ${USER_APP_WORKERS}
+      POSTGRES_USER: ${USER_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${USER_POSTGRES_PASSWORD}
+      POSTGRES_DB: ${USER_POSTGRES_DB}
+      POSTGRES_HOST: postgres_user
+      POSTGRES_PORT: ${USER_POSTGRES_PORT}
     depends_on:
-
-      postgres:
-
+      postgres_user:
         condition: service_healthy
-
+    volumes:
+      - ./services/user_service:/code
+    command:
+      - sh
+      - -c
+      - uvicorn app.main:app --host ${USER_APP_INTERNAL_HOST} --port ${USER_APP_INTERNAL_PORT} --reload
     ports:
-
-      - "${APP_EXTERNAL_PORT}:${APP_INTERNAL_PORT}"
-
+      - "${USER_APP_EXTERNAL_PORT}:${USER_APP_INTERNAL_PORT}"
     healthcheck:
-
-      test: [ "CMD-SHELL", "curl -fsS http://127.0.0.1:${APP_INTERNAL_PORT}/healthcheck || exit 1" ]
-
+      test: ["CMD-SHELL", "curl -fsS http://${USER_APP_INTERNAL_HOST}:${USER_APP_INTERNAL_PORT}/healthcheck || exit 1"]
       interval: 180s
-
       timeout: 5s
-
       retries: 5
-
       start_period: 20s
-
     networks:
-
       - backend
 
+  # product_service:
+  #   build:
+  #     context: ./services/product_service
+  #   container_name: product_service
+  #   restart: unless-stopped
+  #   env_file:
+  #     - ./services/product_service/.env.docker
+  #   environment:
+  #     DATABASE_URL: postgresql+asyncpg://${PRODUCT_POSTGRES_USER}:${PRODUCT_POSTGRES_PASSWORD}@postgres_product:5432/${PRODUCT_POSTGRES_DB}
+  #   depends_on:
+  #     postgres_product:
+  #       condition: service_healthy
+  #   ports:
+  #     - "${PRODUCT_APP_EXTERNAL_PORT}:${PRODUCT_APP_INTERNAL_PORT}"
+  #   networks:
+  #     - backend
 
-
-#   product_service:
-
-#     build:
-
-#       context: ./services/product_service
-
-#     container_name: product_service
-
-#     restart: unless-stopped
-
-#     env_file:
-
-#       - ./services/product_service/.env
-
-#     depends_on:
-
-#       postgres:
-
-#         condition: service_healthy
-
-#     ports:
-
-#       - "8001:8001"
-
-#     networks:
-
-#       - backend
-
-
-
-#   cart_service:
-
-#     build:
-
-#       context: ./services/cart_service
-
-#     container_name: cart_service
-
-#     restart: unless-stopped
-
-#     env_file:
-
-#       - ./services/cart_service/.env
-
-#     depends_on:
-
-#       redis:
-
-#         condition: service_healthy
-
-#     ports:
-
-#       - "8002:8002"
-
-#     networks:
-
-#       - backend
-
-
+  # cart_service:
+  #   build:
+  #     context: ./services/cart_service
+  #   container_name: cart_service
+  #   restart: unless-stopped
+  #   env_file:
+  #     - ./services/cart_service/.env.docker
+  #   environment:
+  #     HOST: ${CART_APP_INTERNAL_HOST}
+  #     PORT: ${CART_APP_INTERNAL_PORT}
+  #   depends_on:
+  #     redis:
+  #       condition: service_healthy
+  #   ports:
+  #     - "${CART_APP_EXTERNAL_PORT}:${CART_APP_INTERNAL_PORT}"
+  #   networks:
+  #     - backend
 
 volumes:
-
-  postgres_data:
-
-#   redis_data:
-
-
+  postgres_user_data:
+  # postgres_product_data:
+  # redis_data:
 
 networks:
-
   backend:
-

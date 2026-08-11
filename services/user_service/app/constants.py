@@ -1,15 +1,35 @@
 """Constants for the application."""
 
+
+# Slow request threshold in seconds (the same log goes into requests and slow_requests).
+SLOW_REQUEST_THRESHOLD_SEC = 1.0
+
+# Default environment file
 DEFAULT_ENV_FILE = ".env"
 
+# OpenAPI description
+OPENAPI_DESCRIPTION = (
+    "REST API for users authorization with JWT authentication "
+    "and management with RBAC."
+)
+
+# OpenAPI tags
 OPENAPI_TAGS = [
     {
-        "name": "users",
-        "description": "Operations with users.",
+        "name": "Authorization",
+        "description": "Sign up, sign in and token refresh.",
     },
     {
-        "name": "auth",
-        "description": "Operations with authentication.",
+        "name": "User Account",
+        "description": "Current authenticated user profile.",
+    },
+    {
+        "name": "CRUD",
+        "description": "User management (get, list, update, delete).",
+    },
+    {
+        "name": "Technical",
+        "description": "Health and service diagnostics.",
     },
 ]
 

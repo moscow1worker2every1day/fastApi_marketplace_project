@@ -1,9 +1,11 @@
 from typing import List, TypeVar
+from uuid import UUID
 
-from app.schemas.user import GetUser, NewUser, UpdateUserEmail, UpdateUserName
+from app.schemas.user import GetUser, NewUser, ResponseMessage, UpdateUserEmail, UpdateUserName
 from app.services.auth_service import AuthService
-from app.storage.postgresql.repositories.user_repository import UserReposetory
+from app.storage.postgresql.repositories.user_repository import UserRepository
 from fastapi import HTTPException, status
+from app.log import users_logger
 from sqlalchemy.exc import IntegrityError, MultipleResultsFound, NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,14 +21,20 @@ class UserService:
         return GetUser.model_validate(orm)
 
     @staticmethod
-    async def get_user_by_id(user_id: int, session: AsyncSession) -> GetUser:
+    async def get_user_by_id(session: AsyncSession, user_id: UUID) -> GetUser:
         try:
-            user_orm = await UserReposetory.get_user_by_id(user_id, session)
+            user_orm = await UserRepository.get_user_by_id(session, user_id)
             return UserService._to_get_user(user_orm)
         except NoResultFound:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"User id={user_id} not found",
+            )
+        except Exception as e:
+            users_logger.error(f"Cannot get user by id: User with id={user_id}: {type(e).__name__} - {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Cannot get user by id: User with id={user_id}: {type(e).__name__} - {e}",
             )
 
     @staticmethod
@@ -38,7 +46,7 @@ class UserService:
         :return: user: GetUser
         """
         try:
-            user_orm = await UserReposetory.get_user_by_email(
+            user_orm = await UserRepository.get_user_by_email(
                 user_email=email, session=session
             )
         except MultipleResultsFound:
@@ -53,45 +61,64 @@ class UserService:
         return UserService._to_get_user(user_orm)
 
     @staticmethod
-    async def delete_user(user_id: int, session: AsyncSession) -> GetUser:
+    async def delete_user(user_id: UUID, session: AsyncSession) -> ResponseMessage:
         try:
-            deleted_user_orm = await UserReposetory.delete_user_by_id(user_id, session)
-            return UserService._to_get_user(deleted_user_orm)
-        except ValueError as e:
+            is_deleted = await UserRepository.delete_user_by_id(user_id, session)
+            users_logger.info(f"User with id={user_id} deleted successfully")
+            return ResponseMessage(
+                message=f"User with id={user_id} deleted successfully: {is_deleted}",
+                user_id=user_id,
+            )
+        except Exception as e:
+            users_logger.error(f"Cannot delete user: User with id={user_id}: {type(e).__name__} - {e}")
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Cannot delete user: User with id={user_id}: {type(e).__name__} - {e}",
+            )
 
     @staticmethod
-    async def update_user_name(data: UpdateUserName, session: AsyncSession) -> GetUser:
+    async def update_user_name(user_id: UUID, data: UpdateUserName, session: AsyncSession) -> GetUser:
         try:
-            updated_user_orm = await UserReposetory.update_user_name(
-                user_id=data.id,
+            updated_user_orm = await UserRepository.update_user_name(
+                user_id=user_id,
                 session=session,
                 first_name=data.first_name,
                 last_name=data.last_name,
             )
             return UserService._to_get_user(updated_user_orm)
-        except ValueError as e:
+        except Exception as e:
+            users_logger.error(f"Cannot update user name: User with id={user_id}: {type(e).__name__} - {e}")
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail=str(e)
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Cannot update user name: User with id={user_id}: {type(e).__name__} - {e}",
             )
 
     @staticmethod
     async def update_user_email(
+        user_id: UUID,
         data: UpdateUserEmail, session: AsyncSession
     ) -> GetUser:
         try:
-            updated_user_orm = await UserReposetory.update_user_email(
-                user_id=data.id, new_email=data.email, session=session
+            updated_user_orm = await UserRepository.update_user_email(
+                user_id=user_id, new_email=data.email, session=session
             )
             return UserService._to_get_user(updated_user_orm)
-        except ValueError as e:
+        except IntegrityError:
+            users_logger.error(f"Cannot update user email: User with id={user_id}: email already exists")
             raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT, detail=str(e))
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"User with email={data.email} already exist",
+            )
+        except Exception as e:
+            users_logger.error(f"Cannot update user email: User with id={user_id}: {type(e).__name__} - {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Cannot update user email: User with id={user_id}: {type(e).__name__} - {e}",
+            )
 
     @staticmethod
     async def get_all_users(session: AsyncSession) -> List[GetUser]:
-        users_orm = await UserReposetory.get_all_users(session)
+        users_orm = await UserRepository.get_all_users(session)
         if not users_orm:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Пользователей нет"
@@ -103,7 +130,7 @@ class UserService:
         hashed_password = AuthService.hash_password(
             data.password).decode("utf-8")
         try:
-            new_user_orm = await UserReposetory.create_new_user(
+            new_user_orm = await UserRepository.create_new_user(
                 first_name=data.first_name,
                 last_name=data.last_name,
                 email=data.email,

@@ -4,6 +4,9 @@ version = "0.1.0"
 description = "Service for CRUD products"
 readme = "README.md"
 requires-python = ">=3.12"
+version_files = [
+  ".app-version",
+]
 dependencies = [
     "asyncpg>=0.30.0",
     "fastapi[standard]>=0.119.1",

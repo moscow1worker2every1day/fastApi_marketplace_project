@@ -4,46 +4,77 @@ import os
 
 from loguru import logger
 from app.config import settings
+from app.constants import SLOW_REQUEST_THRESHOLD_SEC
+
+
+def _patch_record(record):
+    """Ensure format keys always exist outside request context."""
+    record["extra"].setdefault("request_id", "-")
+    record["extra"].setdefault("processing_time", 0)
 
 
 def configure_logging():
-    """Configure logging for the application."""
+    """Configure logging for the application.
+
+    Один вызов logger.info/error может попасть в несколько sinks:
+    - requests.log  — все записи с route_group=requests
+    - slow_requests — те же записи, если processing_time > порога
+    - errors.log    — любые записи уровня ERROR+ (из любого route_group)
+    """
+    logger.remove()
+    logger.configure(patcher=_patch_record)
+
+    common = dict(
+        rotation=settings.loguru.rotation,
+        retention=settings.loguru.retention,
+        encoding=settings.loguru.encoding,
+        format=settings.loguru.log_format,
+    )
 
     logger.add(
         os.path.join(settings.loguru.logs_dir, settings.loguru.auth_log_name),
         level=settings.loguru.log_level,
         filter=lambda record: record["extra"].get("route_group") == "auth",
-        rotation=settings.loguru.rotation,
-        retention=settings.loguru.retention,
-        encoding=settings.loguru.encoding,
-        format=settings.loguru.log_format,
+        **common,
     )
     logger.add(
-
+        os.path.join(settings.loguru.logs_dir, settings.loguru.users_log_name),
+        level=settings.loguru.log_level,
+        filter=lambda record: record["extra"].get("route_group") == "users",
+        **common,
     )
     logger.add(
         os.path.join(settings.loguru.logs_dir, settings.loguru.requests_log_name),
-        rotation=settings.loguru.rotation,
-        retention=settings.loguru.retention,
-        encoding=settings.loguru.encoding,
-        format=settings.loguru.log_format,
+        level=settings.loguru.log_level,
+        filter=lambda record: record["extra"].get("route_group") == "requests",
+        **common,
     )
     logger.add(
-        os.path.join(settings.loguru.logs_dir, "slow_requests.log"),
+        os.path.join(settings.loguru.logs_dir, settings.loguru.slow_requests_log_name),
         level="INFO",
         filter=lambda record: (
-            record["extra"].get("route_group") == settings.loguru.request_log_name
-            and record["extra"].get("extra", {}).get("processing_time", 0) > 1.0
+            record["extra"].get("route_group") == "requests"
+            and record["extra"].get("processing_time", 0) > SLOW_REQUEST_THRESHOLD_SEC
         ),
         rotation=settings.loguru.rotation,
         retention=settings.loguru.retention,
         encoding=settings.loguru.encoding,
         format=settings.loguru.file_log_format,
     )
+    logger.add(
+        os.path.join(settings.loguru.logs_dir, settings.loguru.startup_log_name),
+        level=settings.loguru.log_level,
+        filter=lambda record: record["extra"].get("route_group") == "startup",
+        **common,
+    )
+    # Без filter по route_group: все ERROR/CRITICAL из auth/users/startup/requests.
+    logger.add(
+        os.path.join(settings.loguru.logs_dir, settings.loguru.errors_log_name),
+        level="ERROR",
+        **common,
+    )
 
-startup_logger = logger.bind(route_group=settings.loguru.startup_log_name)
-auth_logger = logger.bind(router_group=settings.loguru.auth_log_name)
-users_logger = logger.bind(router_group=settings.loguru.users_log_name)
-request_logger = logger.bind(router_group=settings.loguru.requests_log_name)
-slow_requests_logger = logger.bind(router_group=settings.loguru.slow_requests_log_name)
-errors_logger = logger.bind(router_group=settings.loguru.errors_log_name)
+
+startup_logger = logger.bind(route_group="startup", request_id="-")
+auth_logger = logger.bind(route_group="auth", request_id="-")
+users_logger = logger.bind(route_group="users", request_id="-")

@@ -13,7 +13,6 @@ from app.utils import _get_project_directory
 ENV_FILE = os.getenv("APP_ENV_FILE", DEFAULT_ENV_FILE)
 PROJECT_ROOT = _get_project_directory()
 
-
 class AppSettings(BaseSettings):
 
     app_name: str = Field(
@@ -38,7 +37,7 @@ class AppSettings(BaseSettings):
     )
     version: str = Field(
         alias="DEPLOY_VERSION",
-        default="1.0.0",
+        default="unknown",
     )
     model_config = SettingsConfigDict(
         extra="ignore",

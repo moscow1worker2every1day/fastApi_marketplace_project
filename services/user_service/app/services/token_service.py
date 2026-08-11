@@ -3,21 +3,18 @@ from datetime import timedelta
 from app.schemas.auth import JWTAccessPayload, JWTRefreshPayload, auth_jwt
 from app.schemas.user import GetUser
 from app.services.auth_service import AuthService
-
-TOKEN_TYPE_FIELD = "type"
-ACCESS_TOKEN_TYPE = "access"
-REFRESH_TOKEN_TYPE = "refresh"
+from app.enums import TokenType
 
 
 class TokenService:
     @staticmethod
     def create_jwt(
-        token_type: str,
+        token_type: TokenType,
         token_data: dict,
         expire_minutes: int = auth_jwt.access_token_expire_minutes,
         expire_timedelta: timedelta | None = None,
     ) -> str:
-        payload = {TOKEN_TYPE_FIELD: token_type}
+        payload = {TokenType.TOKEN_TYPE_FIELD.value: token_type.value}
         payload.update(token_data)
         return AuthService.encode_jwt(
             payload=payload,
@@ -34,14 +31,14 @@ class TokenService:
             role=current_user.role,
         ).model_dump()
         return TokenService.create_jwt(
-            token_type=ACCESS_TOKEN_TYPE, token_data=jwt_payload
+            token_type=TokenType.ACCESS_TOKEN_TYPE, token_data=jwt_payload
         )
 
     @staticmethod
     def create_refresh_token(current_user: GetUser) -> str:
-        jwt_payload = JWTRefreshPayload(sub=str(current_user.id))
+        jwt_payload = JWTRefreshPayload(sub=str(current_user.id)).model_dump()
         return TokenService.create_jwt(
-            token_type=REFRESH_TOKEN_TYPE,
+            token_type=TokenType.REFRESH_TOKEN_TYPE,
             token_data=jwt_payload,
             expire_timedelta=timedelta(
                 days=auth_jwt.refresh_token_expire_days),

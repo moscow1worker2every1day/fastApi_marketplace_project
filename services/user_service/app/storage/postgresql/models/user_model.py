@@ -14,7 +14,8 @@ class UserOrm(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
-        index=True
+        index=True,
+        default=uuid.uuid4,
     )
     first_name: Mapped[str] = mapped_column(
         String(64),
@@ -30,8 +31,12 @@ class UserOrm(Base):
         String(),
     )
     role: Mapped[UserRoles] = mapped_column(
-        Enum(UserRoles, name="user_role"),
-        server_default=UserRoles.user.value
+        Enum(
+            UserRoles,
+            name="user_role",
+            values_callable=lambda enum_cls: [item.value for item in enum_cls],
+        ),
+        server_default=UserRoles.user.value,
     )
     active: Mapped[bool] = mapped_column(
         Boolean,
