@@ -99,7 +99,6 @@ def _assert_user_structure(user: dict) -> None:
         "role",
         "created_at",
         "updated_at",
-        "hashed_password",
         "active",
     }
     assert user.keys() == expected_keys, (
@@ -114,7 +113,6 @@ def _assert_user_structure(user: dict) -> None:
     assert isinstance(user["role"], str)
     assert isinstance(user["created_at"], str)
     assert isinstance(user["updated_at"], str)
-    assert isinstance(user["hashed_password"], str)
     assert isinstance(user["active"], bool)
 
 
@@ -142,7 +140,6 @@ def _create_unique_user_data(role_name: str) -> dict:
         "email": f"test_user_{uuid.uuid4().hex[:8]}@example.com",
         "role": role_name,
         "password": "password",
-        "active": True,
     }
 
 

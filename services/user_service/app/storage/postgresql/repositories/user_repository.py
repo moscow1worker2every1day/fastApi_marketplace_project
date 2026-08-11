@@ -103,11 +103,21 @@ class UserRepository:
             raise
 
     @staticmethod
-    async def get_all_users(session: AsyncSession) -> list[UserOrm]:
-        query = select(UserOrm)
+    async def get_all_users(
+        session: AsyncSession,
+        *,
+        limit: int,
+        offset: int,
+    ) -> tuple[list[UserOrm], int]:
+        query = (
+            select(UserOrm)
+            .order_by(UserOrm.created_at.asc(), UserOrm.id.asc())
+            .limit(limit)
+            .offset(offset)
+        )
         result = await session.execute(query)
-        users = result.scalars().all()
-        return [user for user in users]
+        users = list(result.scalars().all())
+        return users
 
     @staticmethod
     async def get_user_by_email(user_email: str, session: AsyncSession) -> UserOrm | None:

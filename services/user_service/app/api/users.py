@@ -1,9 +1,10 @@
 import uuid
 
+from app.constants import DEFAULT_USERS_LIMIT, DEFAULT_USERS_OFFSET, MAX_USERS_LIMIT
 from app.dependencies.auth_user_dependency import AdminUserDep, SelfOrAdminUserDep, TargetUserDep
 from app.schemas.user import GetUser, ResponseMessage, UpdateUserEmail, UpdateUserName
 from app.storage.postgresql.connection import SessionDep
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 from app.services.user_service import UserService
 
 
@@ -24,8 +25,23 @@ async def get_user(
 async def get_all_users(
     session: SessionDep,
     current_user: AdminUserDep,
+    limit: int = Query(
+        default=DEFAULT_USERS_LIMIT,
+        ge=1,
+        le=MAX_USERS_LIMIT,
+        description="Page size",
+    ),
+    offset: int = Query(
+        default=DEFAULT_USERS_OFFSET,
+        ge=0,
+        description="Number of users to skip",
+    ),
 ):
-    return await UserService.get_all_users(session=session)
+    return await UserService.get_all_users(
+        session=session,
+        limit=limit,
+        offset=offset,
+    )
 
 
 @router.delete("/{user_id}", response_model=ResponseMessage, tags=["CRUD"])

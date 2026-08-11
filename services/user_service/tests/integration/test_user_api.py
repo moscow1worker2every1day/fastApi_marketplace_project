@@ -33,7 +33,7 @@ class TestUserAPI:
         headers: dict[str, str],
         client: httpx.AsyncClient,
     ):
-        """Check that /users returns all users for admin."""
+        """Check that /users returns a paginated page for admin."""
         await _sign_up_user(client)
         response = await client.get("/users/", headers=headers)
 
@@ -43,6 +43,27 @@ class TestUserAPI:
         assert len(users) >= 1
         for user in users:
             _assert_user_structure(user)
+
+    @pytest.mark.asyncio
+    async def test_get_all_users_with_limit_offset(
+        self,
+        headers: dict[str, str],
+        client: httpx.AsyncClient,
+    ):
+        await _sign_up_user(client)
+        await _sign_up_user(client)
+
+        response = await client.get(
+            "/users/",
+            params={"limit": 1, "offset": 0},
+            headers=headers,
+        )
+
+        _assert_status_200(response)
+        body = response.json()
+        assert isinstance(body, list)
+        assert len(body) == 1
+        _assert_user_structure(body[0])
 
     @pytest.mark.asyncio
     async def test_get_all_users_forbidden_for_regular_user(

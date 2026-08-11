@@ -7,6 +7,11 @@ SLOW_REQUEST_THRESHOLD_SEC = 1.0
 # Default environment file
 DEFAULT_ENV_FILE = ".env"
 
+# Users list pagination
+DEFAULT_USERS_LIMIT = 100
+MAX_USERS_LIMIT = 1000
+DEFAULT_USERS_OFFSET = 0
+
 # OpenAPI description
 OPENAPI_DESCRIPTION = (
     "REST API for users authorization with JWT authentication "

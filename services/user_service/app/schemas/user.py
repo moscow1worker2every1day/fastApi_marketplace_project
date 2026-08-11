@@ -1,6 +1,6 @@
 from datetime import datetime
 from uuid import UUID
-from pydantic import BaseModel, field_validator, EmailStr
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from pydantic.config import ConfigDict
 from fastapi import Form
 from typing import Annotated
@@ -60,9 +60,9 @@ class NewUser(BaseUser):
 class GetUser(BaseUser):
     updated_at: datetime
     created_at: datetime
-    hashed_password: str
     id: UUID
     active: bool
+    hashed_password: str = Field(exclude=True)
 
 
 class UpdateUserName(BaseModel):

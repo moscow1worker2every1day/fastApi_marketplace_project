@@ -1,4 +1,4 @@
-from typing import List, TypeVar
+from typing import TypeVar
 from uuid import UUID
 
 from app.schemas.user import GetUser, NewUser, ResponseMessage, UpdateUserEmail, UpdateUserName
@@ -6,6 +6,7 @@ from app.services.auth_service import AuthService
 from app.storage.postgresql.repositories.user_repository import UserRepository
 from fastapi import HTTPException, status
 from app.log import users_logger
+from app.storage.postgresql.models.user_model import UserOrm
 from sqlalchemy.exc import IntegrityError, MultipleResultsFound, NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,7 +17,7 @@ class UserService:
     """Сервис операций с пользователями."""
 
     @staticmethod
-    def _to_get_user(orm: _OrmT) -> GetUser:
+    def _to_get_user(orm: UserOrm) -> GetUser:
         """Преобразует ORM-модель в схему GetUser."""
         return GetUser.model_validate(orm)
 
@@ -117,13 +118,17 @@ class UserService:
             )
 
     @staticmethod
-    async def get_all_users(session: AsyncSession) -> List[GetUser]:
-        users_orm = await UserRepository.get_all_users(session)
-        if not users_orm:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="No users found"
-            )
+    async def get_all_users(
+        session: AsyncSession,
+        *,
+        limit: int,
+        offset: int,
+    ) -> list[GetUser]:
+        users_orm = await UserRepository.get_all_users(
+            session,
+            limit=limit,
+            offset=offset,
+        )
         return [UserService._to_get_user(u) for u in users_orm]
 
     @staticmethod
