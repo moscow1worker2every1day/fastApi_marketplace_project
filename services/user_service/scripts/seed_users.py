@@ -102,9 +102,9 @@ async def seed(count: int, batch_size: int, password: str, clear: bool) -> None:
     if batch_size < 1:
         raise ValueError("--batch-size must be >= 1")
 
-    if clear:
-        deleted = await _clear_load_users()
-        print(f"Cleared {deleted} previous load users")
+    # if clear:
+    #     deleted = await _clear_load_users()
+    #     print(f"Cleared {deleted} previous load users")
 
     hashed_password = AuthService.hash_password(password).decode("utf-8")
     started = time.perf_counter()

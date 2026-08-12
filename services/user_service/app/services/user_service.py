@@ -1,6 +1,7 @@
 from typing import TypeVar
 from uuid import UUID
 
+from app.enums import SortOrder, UserRoles, UserSortField
 from app.schemas.user import GetUser, NewUser, ResponseMessage, UpdateUserEmail, UpdateUserName
 from app.services.auth_service import AuthService
 from app.storage.postgresql.repositories.user_repository import UserRepository
@@ -123,11 +124,17 @@ class UserService:
         *,
         limit: int,
         offset: int,
+        sort_by: UserSortField,
+        sort_order: SortOrder,
+        user_role: UserRoles,
     ) -> list[GetUser]:
         users_orm = await UserRepository.get_all_users(
             session,
             limit=limit,
             offset=offset,
+            sort_by=sort_by,
+            sort_order=sort_order,
+            user_role=user_role,
         )
         return [UserService._to_get_user(u) for u in users_orm]
 

@@ -9,6 +9,7 @@ from tests.helpers import (
     _assert_status_403,
     _assert_status_404,
     _assert_status_409,
+    _assert_status_422,
     _assert_user_structure,
     _get_auth_headers,
     _sign_up_user,
@@ -64,6 +65,50 @@ class TestUserAPI:
         assert isinstance(body, list)
         assert len(body) == 1
         _assert_user_structure(body[0])
+
+    @pytest.mark.asyncio
+    async def test_get_all_users_sort_by_first_name(
+        self,
+        headers: dict[str, str],
+        client: httpx.AsyncClient,
+    ):
+        await _sign_up_user(client, first_name="Charlie")
+        await _sign_up_user(client, first_name="Alice")
+        await _sign_up_user(client, first_name="Bob")
+
+        response = await client.get(
+            "/users/",
+            params={"sort_by": "first_name", "sort_order": "asc"},
+            headers=headers,
+        )
+
+        _assert_status_200(response)
+        first_names = [user["first_name"] for user in response.json()]
+        assert first_names == sorted(first_names)
+
+        response = await client.get(
+            "/users/",
+            params={"sort_by": "first_name", "sort_order": "desc"},
+            headers=headers,
+        )
+
+        _assert_status_200(response)
+        first_names = [user["first_name"] for user in response.json()]
+        assert first_names == sorted(first_names, reverse=True)
+
+    @pytest.mark.asyncio
+    async def test_get_all_users_invalid_sort_field(
+        self,
+        headers: dict[str, str],
+        client: httpx.AsyncClient,
+    ):
+        response = await client.get(
+            "/users/",
+            params={"sort_by": "invalid_field"},
+            headers=headers,
+        )
+
+        _assert_status_422(response)
 
     @pytest.mark.asyncio
     async def test_get_all_users_forbidden_for_regular_user(

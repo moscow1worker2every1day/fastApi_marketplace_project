@@ -6,6 +6,7 @@ from app.schemas.user import GetUser, ResponseMessage, UpdateUserEmail, UpdateUs
 from app.storage.postgresql.connection import SessionDep
 from fastapi import APIRouter, Query
 from app.services.user_service import UserService
+from app.enums import SortOrder, UserRoles, UserSortField
 
 
 router = APIRouter(prefix="/users")
@@ -36,11 +37,27 @@ async def get_all_users(
         ge=0,
         description="Number of users to skip",
     ),
+    user_role: UserRoles = Query(
+        default=UserRoles.user,
+        description="Role of users to get",
+    ),
+    sort_by: UserSortField = Query(
+        default=UserSortField.created_at,
+        description="Field to sort by",
+    ),
+    sort_order: SortOrder = Query(
+        default=SortOrder.asc,
+        description="Sort direction",
+    ),
 ):
+    """Get all users with role 'user'"""
     return await UserService.get_all_users(
         session=session,
         limit=limit,
         offset=offset,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        user_role=user_role,
     )
 
 

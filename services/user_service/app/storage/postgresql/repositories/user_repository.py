@@ -2,13 +2,23 @@ from typing import Optional
 from uuid import UUID
 
 from app.storage.postgresql.models.user_model import UserOrm
-from app.enums import UserRoles
+from app.enums import SortOrder, UserRoles, UserSortField
 
 
 from app.log import users_logger
 from sqlalchemy import select, delete
 from sqlalchemy.exc import IntegrityError, MultipleResultsFound
 from sqlalchemy.ext.asyncio import AsyncSession
+
+
+_USER_SORT_COLUMNS = {
+    UserSortField.created_at: UserOrm.created_at,
+    UserSortField.updated_at: UserOrm.updated_at,
+    UserSortField.first_name: UserOrm.first_name,
+    UserSortField.last_name: UserOrm.last_name,
+    UserSortField.email: UserOrm.email,
+    UserSortField.id: UserOrm.id,
+}
 
 
 class UserRepository:
@@ -103,21 +113,42 @@ class UserRepository:
             raise
 
     @staticmethod
+    def _build_users_order_by(
+        sort_by: UserSortField,
+        sort_order: SortOrder,
+    ) -> list:
+        column = _USER_SORT_COLUMNS[sort_by]
+        direction = column.asc() if sort_order == SortOrder.asc else column.desc()
+        if sort_by == UserSortField.id:
+            return [direction]
+        return [direction, UserOrm.id.asc()]
+
+    @staticmethod
     async def get_all_users(
         session: AsyncSession,
         *,
         limit: int,
         offset: int,
-    ) -> tuple[list[UserOrm], int]:
+        sort_by: UserSortField,
+        sort_order: SortOrder,
+        user_role: UserRoles,
+    ) -> list[UserOrm]:
         query = (
-            select(UserOrm)
-            .order_by(UserOrm.created_at.asc(), UserOrm.id.asc())
+            select(
+                UserOrm.id,
+                UserOrm.first_name,
+                UserOrm.last_name,
+                UserOrm.email,
+                UserOrm.created_at,
+                UserOrm.updated_at,
+            )
+            .filter(UserOrm.role == user_role)
+            .order_by(*UserRepository._build_users_order_by(sort_by, sort_order))
             .limit(limit)
             .offset(offset)
         )
         result = await session.execute(query)
-        users = list(result.scalars().all())
-        return users
+        return list(result.scalars().all())
 
     @staticmethod
     async def get_user_by_email(user_email: str, session: AsyncSession) -> UserOrm | None:
