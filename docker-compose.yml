@@ -24,45 +24,45 @@ services:
     networks:
       - backend
 
-  # postgres_product:
-  #   image: postgres:16
-  #   container_name: postgres_product
-  #   restart: unless-stopped
-  #   env_file:
-  #     - ./services/product_service/.env.docker
-  #   environment:
-  #     POSTGRES_USER: ${PRODUCT_POSTGRES_USER}
-  #     POSTGRES_PASSWORD: ${PRODUCT_POSTGRES_PASSWORD}
-  #     POSTGRES_DB: ${PRODUCT_POSTGRES_DB}
-  #   ports:
-  #     - "${PRODUCT_POSTGRES_PORT}:5432"
-  #   volumes:
-  #     - postgres_product_data:/var/lib/postgresql/data
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "pg_isready -U ${PRODUCT_POSTGRES_USER} -h localhost -d ${PRODUCT_POSTGRES_DB}"]
-  #     interval: 5s
-  #     timeout: 5s
-  #     retries: 5
-  #   networks:
-  #     - backend
+  postgres_product:
+    image: postgres:16
+    container_name: postgres_product
+    restart: unless-stopped
+    env_file:
+      - ./services/product_service/.env.docker
+    environment:
+      POSTGRES_USER: ${PRODUCT_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${PRODUCT_POSTGRES_PASSWORD}
+      POSTGRES_DB: ${PRODUCT_POSTGRES_DB}
+    ports:
+      - "${PRODUCT_POSTGRES_PORT}:5432"
+    volumes:
+      - postgres_product_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PRODUCT_POSTGRES_USER} -h localhost -d ${PRODUCT_POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend
 
-  # rabbitmq:
-  #   image: rabbitmq:3-management
-  #   container_name: rabbitmq
-  #   restart: unless-stopped
-  #   environment:
-  #     RABBITMQ_DEFAULT_USER: app_user
-  #     RABBITMQ_DEFAULT_PASS: app_password
-  #   ports:
-  #     - "5672:5672"
-  #     - "15672:15672"
-  #   healthcheck:
-  #     test: ["CMD", "rabbitmq-diagnostics", "check_running"]
-  #     interval: 5s
-  #     timeout: 5s
-  #     retries: 5
-  #   networks:
-  #     - backend
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_running"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend
 
   # redis:
   #   image: redis:7
@@ -101,6 +101,8 @@ services:
     depends_on:
       postgres_user:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     volumes:
       - ./services/user_service:/code
     command:
@@ -118,22 +120,44 @@ services:
     networks:
       - backend
 
-  # product_service:
-  #   build:
-  #     context: ./services/product_service
-  #   container_name: product_service
-  #   restart: unless-stopped
-  #   env_file:
-  #     - ./services/product_service/.env.docker
-  #   environment:
-  #     DATABASE_URL: postgresql+asyncpg://${PRODUCT_POSTGRES_USER}:${PRODUCT_POSTGRES_PASSWORD}@postgres_product:5432/${PRODUCT_POSTGRES_DB}
-  #   depends_on:
-  #     postgres_product:
-  #       condition: service_healthy
-  #   ports:
-  #     - "${PRODUCT_APP_EXTERNAL_PORT}:${PRODUCT_APP_INTERNAL_PORT}"
-  #   networks:
-  #     - backend
+  product_service:
+    build:
+      context: ./services/product_service
+    container_name: product_service
+    restart: unless-stopped
+    env_file:
+      - ./services/product_service/.env.docker
+    environment:
+      APP_HOST: ${PRODUCT_APP_INTERNAL_HOST}
+      APP_INTERNAL_PORT: ${PRODUCT_APP_INTERNAL_PORT}
+      APP_RELOAD: ${PRODUCT_APP_RELOAD}
+      APP_WORKERS: ${PRODUCT_APP_WORKERS}
+      POSTGRES_USER: ${PRODUCT_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${PRODUCT_POSTGRES_PASSWORD}
+      POSTGRES_DB: ${PRODUCT_POSTGRES_DB}
+      POSTGRES_HOST: postgres_product
+      POSTGRES_PORT: 5432
+    depends_on:
+      postgres_product:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - ./services/product_service:/code
+    command:
+      - sh
+      - -c
+      - uvicorn app.main:app --host ${PRODUCT_APP_INTERNAL_HOST} --port ${PRODUCT_APP_INTERNAL_PORT} --reload
+    ports:
+      - "${PRODUCT_APP_EXTERNAL_PORT}:${PRODUCT_APP_INTERNAL_PORT}"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://${PRODUCT_APP_INTERNAL_HOST}:${PRODUCT_APP_INTERNAL_PORT}/healthcheck || exit 1"]
+      interval: 180s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - backend
 
   # cart_service:
   #   build:
@@ -155,7 +179,7 @@ services:
 
 volumes:
   postgres_user_data:
-  # postgres_product_data:
+  postgres_product_data:
   # redis_data:
 
 networks:

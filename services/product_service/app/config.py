@@ -1,23 +1,20 @@
 import os
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field
 
-from app.constants import (
-    DEFAULT_ENV_FILE,
-    REQUEST_LOG_FORMAT,
-    FILE_LOG_FORMAT
-)
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from app.constants import DEFAULT_ENV_FILE, FILE_LOG_FORMAT, REQUEST_LOG_FORMAT
 from app.utils import _get_project_directory
 
 
 ENV_FILE = os.getenv("APP_ENV_FILE", DEFAULT_ENV_FILE)
 PROJECT_ROOT = _get_project_directory()
 
-class AppSettings(BaseSettings):
 
+class AppSettings(BaseSettings):
     app_name: str = Field(
         alias="COMPOSE_PROJECT_NAME",
-        default="user-service",
+        default="product-service",
     )
     host: str = Field(
         alias="APP_HOST",
@@ -25,7 +22,7 @@ class AppSettings(BaseSettings):
     )
     port: int = Field(
         alias="APP_INTERNAL_PORT",
-        default=8000,
+        default=8001,
     )
     reload: bool = Field(
         alias="APP_RELOAD",
@@ -39,6 +36,7 @@ class AppSettings(BaseSettings):
         alias="DEPLOY_VERSION",
         default="unknown",
     )
+
     model_config = SettingsConfigDict(
         extra="ignore",
         env_file=ENV_FILE,
@@ -66,6 +64,7 @@ class PostgresSettings(BaseSettings):
         alias="POSTGRES_DB",
         default="postgres",
     )
+
     model_config = SettingsConfigDict(
         extra="ignore",
         env_file=ENV_FILE,
@@ -77,28 +76,6 @@ class PostgresSettings(BaseSettings):
             f"postgresql+asyncpg://{self.user}:{self.password}"
             f"@{self.host}:{self.port}/{self.database}"
         )
-
-    @property
-    def sync_database_url(self):
-        return (
-            f"postgresql+psycopg2://{self.user}:{self.password}"
-            f"@{self.host}:{self.port}/{self.database}"
-        )
-
-
-class AlembicSettings(BaseSettings):
-    alembic_path: str = Field(
-        alias="ALEMBIC_PATH",
-        default=os.path.join(os.path.dirname(os.path.dirname(__file__)), "alembic/")
-    )
-    alembic_ini_path: str = Field(
-        alias="ALEMBIC_INI_PATH",
-        default=os.path.join(os.path.dirname(os.path.dirname(__file__)), "alembic.ini")
-    )
-    model_config = SettingsConfigDict(
-        extra="ignore",
-        env_file=ENV_FILE,
-    )
 
 
 class RabbitMQSettings(BaseSettings):
@@ -122,6 +99,15 @@ class RabbitMQSettings(BaseSettings):
         alias="RABBITMQ_VHOST",
         default="/",
     )
+    mq_product_exchange: str = Field(
+        alias="MQ_PRODUCT_EXCHANGE",
+        default="Product",
+    )
+    mq_product_routing_key: str = Field(
+        alias="MQ_PRODUCT_ROUTING_KEY",
+        default="Product",
+    )
+
     model_config = SettingsConfigDict(
         extra="ignore",
         env_file=ENV_FILE,
@@ -133,36 +119,6 @@ class RabbitMQSettings(BaseSettings):
             f"amqp://{self.user}:{self.password}@"
             f"{self.host}:{self.port}/{self.vhost}"
         )
-
-
-class JWTSettings(BaseSettings):
-    jwt_secret_key: str = Field(
-        alias="JWT_SECRET_KEY",
-        default="my-secret-key",
-    )
-    jwt_private_key_path: str = Field(
-        alias="JWT_PRIVATE_KEY_PATH",
-        default="keys/jwt-private.pem",
-    )
-    jwt_public_key_path: str = Field(
-        alias="JWT_PUBLIC_KEY_PATH",
-        default="keys/jwt-public.pem",
-    )
-    model_config = SettingsConfigDict(
-        extra="ignore",
-        env_file=ENV_FILE,
-    )
-
-
-class RedisSettings(BaseSettings):
-    redis_url: str = Field(
-        alias="REDIS_URL",
-        default="redis://redis:6379",
-    )
-    model_config = SettingsConfigDict(
-        extra="ignore",
-        env_file=ENV_FILE,
-    )
 
 
 class LoguruSettings(BaseSettings):
@@ -194,13 +150,13 @@ class LoguruSettings(BaseSettings):
         alias="LOGURU_FILE_LOG_FORMAT",
         default=FILE_LOG_FORMAT,
     )
-    auth_log_name: str = Field(
-        alias="LOGURU_AUTH_LOG_NAME",
-        default="auth.log",
+    products_log_name: str = Field(
+        alias="LOGURU_PRODUCTS_LOG_NAME",
+        default="products.log",
     )
-    users_log_name: str = Field(
-        alias="LOGURU_USERS_LOG_NAME",
-        default="users.log",
+    categories_log_name: str = Field(
+        alias="LOGURU_CATEGORIES_LOG_NAME",
+        default="categories.log",
     )
     requests_log_name: str = Field(
         alias="LOGURU_REQUESTS_LOG_NAME",
@@ -218,40 +174,30 @@ class LoguruSettings(BaseSettings):
         alias="LOGURU_STARTUP_LOG_NAME",
         default="startup.log",
     )
+
     model_config = SettingsConfigDict(
         extra="ignore",
         env_file=ENV_FILE,
     )
 
 
-class Settings():
-
+class Settings:
     def __init__(
         self,
         app: AppSettings,
         postgres: PostgresSettings,
-        alembic: AlembicSettings,
         rabbitmq: RabbitMQSettings,
-        jwt: JWTSettings,
-        redis: RedisSettings,
         loguru: LoguruSettings,
     ):
-        """Assigning Settings for the application"""
         self.app = app
         self.postgres = postgres
-        self.alembic = alembic
         self.rabbitmq = rabbitmq
-        self.jwt = jwt
-        self.redis = redis
         self.loguru = loguru
 
 
 settings = Settings(
     app=AppSettings(),
     postgres=PostgresSettings(),
-    alembic=AlembicSettings(),
     rabbitmq=RabbitMQSettings(),
-    jwt=JWTSettings(),
-    redis=RedisSettings(),
     loguru=LoguruSettings(),
 )

@@ -1,21 +1,22 @@
-import uuid
-from sqlalchemy import String, func, Enum, Boolean, Integer
+from sqlalchemy import String, func, Enum, Boolean
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from datetime import datetime
+import uuid
 
 from app.storage.postgresql.models.base_model import Base
 from app.enums import UserRoles
 
 
 class UserOrm(Base):
+    """User model for PostgreSQL database."""
     __tablename__ = "users"
 
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        PG_UUID(as_uuid=True),
         primary_key=True,
         index=True,
-        default=uuid.uuid4,
+        default=lambda: uuid.uuid4(),
     )
     first_name: Mapped[str] = mapped_column(
         String(64),

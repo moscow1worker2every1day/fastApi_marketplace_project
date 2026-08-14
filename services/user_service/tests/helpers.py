@@ -10,7 +10,6 @@ load_dotenv(os.path.join(_project_root, ".env.test"), override=True)
 
 APP_PORT = os.getenv("TEST_APP_PORT", "8000")
 APP_HOST = os.getenv("TEST_APP_HOST", "localhost")
-APP_VERSION = os.getenv("DEPLOY_VERSION", "unknown")
 BASE_URL = f"http://{APP_HOST}:{APP_PORT}"
 HTTP_CLIENT_TIMEOUT = int(os.getenv("HTTP_CLIENT_TIMEOUT", "10"))
 

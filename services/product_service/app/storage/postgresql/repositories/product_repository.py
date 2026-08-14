@@ -1,49 +1,53 @@
 from typing import List
+from uuid import UUID
 from sqlalchemy import select, update, delete
 from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.storage.postgresql.models.product_model import ProductOrm
-from app.logging import logging
+from app.log import products_logger
 
 
 class ProductRepository:
 
     @staticmethod
-    async def get_product_by_id(session: AsyncSession, product_id: int) -> ProductOrm:
-        try:
-            # select on load
-            query = (
-                select(ProductOrm)
-                .options(selectinload(ProductOrm.category))
-                .where(ProductOrm.id == product_id)
-            )
-            result = await session.execute(query)
-            product = result.scalar_one()
-            return product
-        except NoResultFound:
-            raise ValueError(f"Product_id={product_id} dont found")
-
-    @staticmethod
-    async def get_products(session: AsyncSession, only_available: bool = True) -> list[ProductOrm]:
+    async def get_product_by_id(session: AsyncSession, product_id: UUID) -> ProductOrm:
+        # select on load
         query = (
             select(ProductOrm)
             .options(selectinload(ProductOrm.category))
+            .where(ProductOrm.id == product_id)
         )
+        result = await session.execute(query)
+        return result.scalar_one()
 
+    @staticmethod
+    async def get_products(
+        *,
+        session: AsyncSession,
+        only_available: bool,
+        category_id: UUID | None,
+        limit: int,
+        offset: int,
+    ) -> list[ProductOrm]:
+        query = (
+            select(ProductOrm)
+            .options(selectinload(ProductOrm.category))
+            .limit(limit)
+            .offset(offset)
+        )
         if only_available:
             query = query.where(ProductOrm.available.is_(True))
 
+        if category_id:
+            query = query.where(ProductOrm.category_id == category_id)
+
         result = await session.execute(query)
-
-        scalars = result.scalars()
-        products: list[ProductOrm] = scalars.all()
-
-        return products
+        return result.scalars().all()
 
     @staticmethod
-    async def get_products_by_ids(session: AsyncSession, product_ids: List[int]) -> List[ProductOrm]:
+    async def get_products_by_ids(session: AsyncSession, product_ids: List[UUID]) -> List[ProductOrm]:
         if not product_ids:
             return []
 
@@ -58,7 +62,7 @@ class ProductRepository:
         return products
 
     @staticmethod
-    async def delete_product(*, session: AsyncSession, product_id: int) -> ProductOrm:
+    async def delete_product(*, session: AsyncSession, product_id: UUID) -> ProductOrm:
         try:
             delete_product = await ProductRepository.get_product_by_id(session=session, product_id=product_id)
 
@@ -69,7 +73,7 @@ class ProductRepository:
             raise ValueError(f"Cant delete product! Error: {e}")
 
     @staticmethod
-    async def unavailable_product(*, session: AsyncSession, product_id: int) -> ProductOrm:
+    async def unavailable_product(*, session: AsyncSession, product_id: UUID) -> ProductOrm:
         try:
             query = (
                 update(ProductOrm)
@@ -87,7 +91,7 @@ class ProductRepository:
             return product
 
         except Exception as e:
-            logging.info(f"Cannot unavailable product {e}")
+            products_logger.info(f"Cannot unavailable product {e}")
             raise ValueError(f"Cannot unavailable product! Product_id={product_id} dont found")
 
     @staticmethod
@@ -98,39 +102,33 @@ class ProductRepository:
             description: str | None = None,
             price: float,
             stock: int,
-            category_id: int
+            category_id: UUID,
+            seller_id: UUID
     ) -> ProductOrm:
-        try:
-            new_product = ProductOrm(
-                name=name,
-                description=description,
-                price=price,
-                stock=stock,
-                category_id=category_id
-            )
-            session.add(new_product)
-            await session.flush()
-            await session.commit()
-            logging.info(f"Inserted product [{new_product}]")
-            return new_product
+        new_product = ProductOrm(
+            name=name,
+            description=description,
+            price=price,
+            stock=stock,
+            category_id=category_id,
+            seller_id=seller_id
+        )
+        session.add(new_product)
+        await session.flush()
+        await session.commit()
+        return new_product
 
-        except IntegrityError as e:
-
-            if "products_category_id_fkey" in str(e.orig):
-                logging.info(f"Cannot insert product {e.params} {e.orig}")
-                raise ValueError(f"Cannot insert product: category_id {category_id} dont found")
-            else:
-                logging.warning(f"Cannot insert product {e.params}. Unknown error: {str(e.orig)}")
-                raise ValueError(f"Cannot insert product {e.params}")
 
     @staticmethod
-    async def update_product(*,
-                             session: AsyncSession,
-                             name: str | None,
-                             description: str | None,
-                             price: float,
-                             stock: int,
-                             category_id: int | None) -> ProductOrm:
+    async def update_product(
+        *,
+        session: AsyncSession,
+        name: str | None,
+        description: str | None,
+        price: float,
+        stock: int,
+        category_id: UUID | None
+    ) -> ProductOrm:
         try:
             updated_product = ProductOrm(
                 name=name,
@@ -142,9 +140,9 @@ class ProductRepository:
 
             await session.flush()
             await session.commit()
-            logging.info(f"Updated product [{updated_product}]")
+            products_logger.info(f"Updated product [{updated_product}]")
             return updated_product
         except Exception as e:
-            logging.warning(f"Cannot update product {e}")
+            products_logger.warning(f"Cannot update product {e}")
             raise ValueError(f"Cannot update product {e}")
 
