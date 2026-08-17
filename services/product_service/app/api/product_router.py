@@ -23,8 +23,14 @@ router = APIRouter(prefix="/products", tags=["Products"])
         status.HTTP_404_NOT_FOUND: {"description": "Product not found"},
     },
 )
-async def get_product(target_product: TargetProductDep) -> GetProduct:
-    return target_product
+async def get_product(
+    session: SessionDep,
+    target_product: TargetProductDep,
+) -> GetProduct:
+    return await ProductService.get_product_by_id(
+        session=session,
+        target_product=target_product,
+    )
 
 
 @router.get(

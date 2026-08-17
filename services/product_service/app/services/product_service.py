@@ -18,8 +18,15 @@ class ProductService:
         return GetProduct.model_validate(orm, from_attributes=True)
 
     @staticmethod
-    async def get_product_by_id(*, session: AsyncSession, product_id: int) -> GetProduct:
-        product_orm = await ProductRepository.get_product_by_id(session=session, product_id=product_id)
+    async def get_product_by_id(
+        *,
+        session: AsyncSession,
+        target_product: GetProduct,
+    ) -> GetProduct:
+        product_orm = await ProductRepository.get_product_by_id(
+            session=session,
+            product_id=target_product.id,
+        )
         return ProductService._to_get_product(product_orm)
 
     @staticmethod
