@@ -1,6 +1,6 @@
 # Инструкция по запуску и развёртыванию
 
-Документ описывает, как поднять FastAPI Marketplace локально через Docker Compose и (опционально) запустить сервисы с хоста.
+Документ описывает, как поднять FastAPI Marketplace локально через Docker Compose и (опционально) запустить сервисы с хоста. Обзор архитектуры и паттернов — в [README.md](./README.md).
 
 ---
 
@@ -29,7 +29,7 @@
 | `PRODUCT_POSTGRES_PORT` | Postgres product на хосте | `5434` |
 | `RABBITMQ_USER` / `RABBITMQ_PASSWORD` | Учётка RabbitMQ | см. ваш `.env` |
 
-Если файла нет — скопируйте настройки из существующего примера в репозитории (.env.example).
+Если файла нет — восстановите переменные по образцу `docker-compose.yml` и существующим `services/*/.env.docker`.
 
 ### 1.2. Runtime-конфиг сервисов
 
@@ -89,8 +89,12 @@ docker compose down -v
 | `postgres_user` | БД пользователей | `${USER_POSTGRES_PORT}:5432` (обычно **5432**) |
 | `postgres_product` | БД каталога | `${PRODUCT_POSTGRES_PORT}:5432` (обычно **5434**) |
 | `rabbitmq` | Брокер + Management UI | **5672**, **15672** |
+| `redis` | Корзина / опциональный кэш | **6379** |
 | `user_service` | API пользователей и auth | **8000** |
 | `product_service` | API товаров и категорий | **8001** |
+| `cart_service` | API корзины | **8002** |
+
+**Нет в Compose:** `order_service` (только заготовка кода).
 
 Старт приложений ждёт healthy Postgres и RabbitMQ (`depends_on` + healthcheck).
 
@@ -135,7 +139,19 @@ docker compose exec user_service alembic upgrade head
 
 ---
 
-## 5. Основные API (кратко)
+## 5. Seed пользователей (опционально)
+
+После того как `user_service` отвечает на healthcheck:
+
+```bash
+docker compose exec user_service python -m scripts.seed_users
+```
+
+Дополнительные флаги смотрите в `services/user_service/scripts/`.
+
+---
+
+## 6. Основные API (кратко)
 
 ### user_service (`:8000`)
 
@@ -158,7 +174,7 @@ docker compose exec user_service alembic upgrade head
 
 ---
 
-## 6. Локальный запуск приложений без Docker (приложение на хосте)
+## 7. Локальный запуск приложений без Docker (приложение на хосте)
 
 Инфраструктуру удобнее оставить в Compose:
 
@@ -179,7 +195,9 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 ---
 
-## 7. Тесты
+## 8. Тесты
+
+### Unit / integration (внутри сервиса)
 
 ```bash
 cd services/user_service
@@ -192,25 +210,65 @@ uv run pytest
 
 Для интеграционных тестов нужны корректные `.env.test` и поднятая инфраструктура.
 
+### E2E (интеграция сервисов)
+
+Корневой пакет `tests/e2e` бьёт по HTTP в user/product/cart и проверяет связку через RabbitMQ.
+
+| Файл | Назначение |
+|------|------------|
+| `docker-compose.e2e.yml` | Overlay: без bind-mount/`--reload`, healthcheck каждые 5s, отдельные volume |
+| `.env.e2e.example` | Порты Compose + URL для pytest |
+| `tests/e2e/` | Фикстуры клиентов, wait-for-health, сценарии |
+| `scripts/e2e/run.ps1` / `run.sh` | Поднять стек → pytest → `down -v` |
+
+```bash
+# полный цикл
+.\scripts\e2e\run.ps1          # Windows
+./scripts/e2e/run.sh           # Unix
+
+# против уже запущенного стека
+.\scripts\e2e\run.ps1 -SkipUp -SkipDown
+uv sync
+uv run pytest tests/e2e -m e2e
+```
+
+Перед первым запуском: JWT-ключи в `services/user_service/keys/` и `services/*/`.env.docker` как для обычного Compose.
+
 ---
 
-## 8. Типичные проблемы
+## 9. Redis и cart_service
+
+`redis` и `cart_service` уже описаны в `docker-compose.yml`. Проверьте:
+
+1. `services/cart_service/.env.docker` (`REDIS_HOST=redis`, `MQ_PRODUCT_EXCHANGE` / `MQ_PRODUCT_ROUTING_KEY` согласованы с product).
+2. При необходимости включите кэш в product (`REDIS_ENABLED` в `.env.docker`).
+3. Пересоберите: `docker compose up --build`.
+
+Корзина будет на порту **8002** (если не меняли `CART_APP_EXTERNAL_PORT`).
+
+---
+
+## 10. Типичные проблемы
 
 | Симптом | Что проверить |
 |---------|----------------|
-| Сервис не стартует | Логи: `docker compose logs -f user_service` / `product_service` |
+| Сервис не стартует | Логи: `docker compose logs -f user_service` / `product_service` / `cart_service` |
 | Ошибка БД | Health Postgres, логин/пароль/имя БД в корневом `.env` и `.env.docker` |
 | Ошибка RabbitMQ | Контейнер `rabbitmq` healthy; host в docker-env = `rabbitmq` |
 | 401 / ошибки JWT | Наличие `jwt-private.pem` / `jwt-public.pem` и пути в настройках |
-| Порт занят | Смените `*_EXTERNAL_PORT` в корневом `.env` |
-| Healthcheck flaky | У сервисов большой `interval`; смотрите `/healthcheck` вручную через curl |
+| Порт занят | Смените `*_EXTERNAL_PORT` в корневом `.env` / `.env.e2e` |
+| E2E timeout на health | `docker compose -p marketplace-e2e ps` и `logs`; увеличьте `E2E_HEALTH_TIMEOUT_SEC` |
+| E2E: товар не уходит из корзины | Совпадение exchange/routing key product↔cart; логи consumer в `cart_service` |
 
 ---
 
-## 9. Рекомендации
+## 11. Рекомендации для «почти production»
 
-- Убрать bind-mount исходников и флаг `--reload`; задать фиксированное число workers.  
-- Собирать зависимости через `uv sync --frozen` в Dockerfile.  
-- Секреты (пароли БД, JWT) — через Docker secrets / CI variables, не коммитить реальные `.env`.  
-- Добавить reverse-proxy (Nginx / Traefik / API Gateway) перед сервисами.  
+- Убрать bind-mount исходников и флаг `--reload`; задать фиксированное число workers.
+- Собирать зависимости через `uv sync --frozen` в Dockerfile.
+- Секреты (пароли БД, JWT) — через Docker secrets / CI variables, не коммитить реальные `.env`.
+- Добавить reverse-proxy (Nginx / Traefik / API Gateway) перед сервисами.
 - Включить метрики и централизованные логи перед выкладкой на сервер.
+- В CI: `scripts/e2e/run.sh` после сборки образов.
+
+Минимальный сценарий на VPS: Docker → клон репозитория → заполнить `.env` / `.env.docker` → JWT-ключи → `docker compose up -d --build` → health/Swagger за reverse-proxy с TLS.

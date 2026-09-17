@@ -1,26 +1,34 @@
-from pydantic import BaseModel, field_validator
-from enum import Enum
+from uuid import UUID
+
+from pydantic import BaseModel, Field
 
 
-class UserCartItem(BaseModel):
-    product_id: int
-    quantity: int
-    price: float
+class CartItem(BaseModel):
+    quantity: int = Field(
+        description="Quantity of the cart item.",
+        default=1,
+        ge=1,
+    )
+    price: float = Field(
+        description="Price of the cart item.",
+        default=0.0,
+        ge=0.0,
+    )
 
-    @field_validator("quantity")
-    @classmethod
-    def value_is_positive(cls, value):
-        if value <= 0:
-            raise ValueError("Value must be > 0")
-        return value
+
+class UserCartItem(CartItem):
+    product_id: UUID = Field(
+        description="ID of the product.",
+        default=None,
+    )
 
     model_config = {
         "json_schema_extra": {
             "examples": [
                 {
-                    "product_id": "1",
-                    "quantity": "2",
-                    "price": 3599.99
+                    "product_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+                    "quantity": 2,
+                    "price": 3599.99,
                 }
             ]
         }
@@ -28,14 +36,20 @@ class UserCartItem(BaseModel):
 
 
 class UserCart(BaseModel):
-    items: list[UserCartItem]
-    total: float
+    items: list[UserCartItem] = Field(
+        description="List of cart items.",
+        default_factory=list,
+    )
+    total: float = Field(
+        description="Total price of the cart items.",
+        default=0.0,
+        ge=0.0,
+        alias="total_price",
+    )
 
 
 class UserCartOut(UserCart):
-    message: str | None
-
-
-class DeltaEnum(int, Enum):
-    increase = 1
-    decrease = -1
+    message: str | None = Field(
+        description="Message of the cart operation.",
+        default=None,
+    )

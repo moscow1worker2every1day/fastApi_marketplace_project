@@ -1,5 +1,3 @@
-from contextlib import asynccontextmanager
-from typing import AsyncGenerator
 from redis.asyncio import Redis
 from services.product_service.app.config import settings
 

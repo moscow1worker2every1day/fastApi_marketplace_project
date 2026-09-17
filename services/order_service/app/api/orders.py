@@ -1,4 +1,7 @@
+from uuid import UUID
+
 from fastapi import APIRouter
+
 from app.schemas.order_schema import BaseOrder, OrderOut
 
 router = APIRouter(prefix="/order")
@@ -10,11 +13,11 @@ router = APIRouter(prefix="/order")
             description="Get one user order with all the information, name, description, total_price, time",
             response_description="The get order"
             )
-async def get_order(order_id: int):
+async def get_order(order_id: UUID):
     return {"message": f"{order_id}"}
 
 
 @router.post("/{user_id}")
-async def create_order(user_id: int, order: BaseOrder):
-    """Создание заказа со всей информацией"""
+async def create_order(user_id: UUID, order: BaseOrder):
+    """Create an order with all the information"""
     pass

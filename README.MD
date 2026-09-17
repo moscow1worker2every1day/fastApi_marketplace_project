@@ -9,7 +9,7 @@
 ## Зачем этот проект
 
 - Демонстрирует связку **API + Postgres + SQLAlchemy + RabbitMQ + Redis + JWT + Docker**, типичную для e-commerce.
-- Полезен как основа для внедрения prodaction-features: платежи, AI-рекомендации, API Gateway, наблюдаемость.
+- Полезен как основа для внедрения production-features: платежи, AI-рекомендации, API Gateway, наблюдаемость.
 
 ---
 
@@ -19,7 +19,7 @@
 |--------|------|------------|--------|
 | **user_service** | `8000` | Регистрация, JWT (RS256), роли, CRUD пользователей | Готов |
 | **product_service** | `8001` | Категории и товары, фильтры, soft delete, RPC к user | Готов |
-| **cart_service** | `8002` | Корзина в Redis | Есть код, в Compose пока отключён |
+| **cart_service** | `8002` | Корзина в Redis, события Product.* через RabbitMQ | Готов |
 | **order_service** | — | Оформление заказов | Заготовка |
 
 **Инфраструктура:** PostgreSQL (отдельные БД для user и product), RabbitMQ (AMQP + Management UI), Redis (для корзины и кэша catalog).
@@ -32,7 +32,7 @@
     │         │
     └─► product_service ──► Postgres (products)
               │
-              │ (планируется) события Product.*
+              │ RabbitMQ topic: product.deleted / product.unavailable
               ▼
          cart_service ──► Redis
 ```
@@ -80,6 +80,7 @@ docker compose up --build
 |-----|-----|
 | User API / Swagger | http://localhost:8000/docs |
 | Product API / Swagger | http://localhost:8001/docs |
+| Cart API / Swagger | http://localhost:8002/docs |
 | RabbitMQ Management | http://localhost:15672 |
 
 Остановка: `docker compose down`.
@@ -103,16 +104,15 @@ docker compose up --build
 
 ## Возможные пути развития
 
-1. **Включить Redis и cart_service в Compose** — довести событие удаления товара → инвалидация/очистка позиций корзины; унифицировать типы ID (UUID vs int).
-2. **Реализовать order_service** — checkout из корзины, статусы заказа, резерв остатков; паттерн saga / transactional outbox.
-3. **API Gateway / BFF** — единая точка входа, проверка JWT один раз, rate limiting, маршрутизация.
-4. **Общая аутентификация между сервисами** — раздача public key / JWKS, Bearer на product/cart/order (сейчас JWT сосредоточен в user_service).
-5. **Миграции для product (и order)** — Alembic вместо `create_all` на старте.
-6. **Observability** — Prometheus-метрики, OpenTelemetry-трейсы, correlation id через HTTP и MQ.
-7. **CI/CD** — прогон pytest, smoke healthcheck после `compose up`, нагрузочные сценарии на базе `seed_users`.
-8. **Production Docker** — сборка через `uv sync`, без bind-mount и `--reload`; единая версия Python во всех образах.
-9. **Recommendation service** — персональные и популярные рекомендации на основе просмотров/покупок (сейчас только идея в roadmap).
-10. **Усиление безопасности** — секреты вне репозитория, ужесточение CORS, минимальный payload в JWT.
+1. **Реализовать order_service** — checkout из корзины, статусы заказа, резерв остатков; паттерн saga / transactional outbox.
+2. **API Gateway / BFF** — единая точка входа, проверка JWT один раз, rate limiting, маршрутизация.
+3. **Общая аутентификация между сервисами** — раздача public key / JWKS, Bearer на product/cart/order (сейчас JWT сосредоточен в user_service).
+4. **Миграции для product (и order)** — Alembic вместо `create_all` на старте.
+5. **Observability** — Prometheus-метрики, OpenTelemetry-трейсы, correlation id через HTTP и MQ.
+6. **CI/CD** — прогон pytest, smoke healthcheck после `compose up`, нагрузочные сценарии на базе `seed_users`.
+7. **Production Docker** — сборка через `uv sync`, без bind-mount и `--reload`; единая версия Python во всех образах.
+8. **Recommendation service** — персональные и популярные рекомендации на основе просмотров/покупок (сейчас только идея в roadmap).
+9. **Усиление безопасности** — секреты вне репозитория, ужесточение CORS, минимальный payload в JWT.
 
 ---
 
@@ -121,7 +121,12 @@ docker compose up --build
 ```
 fastApi_marketplace_project/
 ├── docker-compose.yml
+├── docker-compose.e2e.yml    # overlay для e2e (без reload, быстрый healthcheck)
 ├── .env                      # переменные для подстановки в Compose
+├── .env.e2e.example          # порты/URL для e2e
+├── pyproject.toml            # зависимости e2e (optional-dependencies)
+├── tests/e2e/                # black-box сценарии интеграции сервисов
+├── scripts/e2e/              # run.ps1 / run.sh
 ├── deployment.md
 └── services/
     ├── user_service/
@@ -129,6 +134,31 @@ fastApi_marketplace_project/
     ├── cart_service/
     └── order_service/
 ```
+
+### E2E-тесты интеграции
+
+Black-box pytest + httpx против поднятого Compose-стека (user ↔ product через RabbitMQ RPC, product → cart через topic events).
+
+```bash
+# Windows
+.\scripts\e2e\run.ps1
+
+# Linux / macOS / Git Bash
+./scripts/e2e/run.sh
+```
+
+Или вручную: скопировать `.env.e2e.example` → `.env.e2e`, поднять стек и запустить pytest:
+
+```bash
+docker compose --env-file .env.e2e -f docker-compose.yml -f docker-compose.e2e.yml -p marketplace-e2e up --build -d
+uv sync   # или: pip install httpx pytest pytest-asyncio python-dotenv
+uv run pytest tests/e2e
+docker compose --env-file .env.e2e -f docker-compose.yml -f docker-compose.e2e.yml -p marketplace-e2e down -v
+```
+
+Можно гонять те же тесты против обычного `docker compose up`, если порты совпадают с `USER_SERVICE_URL` / `PRODUCT_SERVICE_URL` / `CART_SERVICE_URL` в `.env.e2e`.
+
+Подробности: [deployment.md](./deployment.md) § E2E.
 
 ---
 

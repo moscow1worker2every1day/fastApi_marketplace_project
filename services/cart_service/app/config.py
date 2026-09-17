@@ -3,18 +3,15 @@ import os
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from app.constants import DEFAULT_ENV_FILE, FILE_LOG_FORMAT, REQUEST_LOG_FORMAT
-from app.utils import _get_project_directory
+from app.constants import LOG_FORMAT
 
-
-ENV_FILE = os.getenv("APP_ENV_FILE", DEFAULT_ENV_FILE)
-PROJECT_ROOT = _get_project_directory()
+ENV_FILE = os.getenv("APP_ENV_FILE", ".env.docker")
 
 
 class AppSettings(BaseSettings):
     app_name: str = Field(
         alias="COMPOSE_PROJECT_NAME",
-        default="product-service",
+        default="cart-service",
     )
     host: str = Field(
         alias="APP_HOST",
@@ -22,15 +19,7 @@ class AppSettings(BaseSettings):
     )
     port: int = Field(
         alias="APP_INTERNAL_PORT",
-        default=8001,
-    )
-    reload: bool = Field(
-        alias="APP_RELOAD",
-        default=True,
-    )
-    workers: int = Field(
-        alias="APP_WORKERS",
-        default=4,
+        default=8002,
     )
     version: str = Field(
         alias="DEPLOY_VERSION",
@@ -43,44 +32,10 @@ class AppSettings(BaseSettings):
     )
 
 
-class PostgresSettings(BaseSettings):
-    user: str = Field(
-        alias="POSTGRES_USER",
-        default="postgres",
-    )
-    password: str = Field(
-        alias="POSTGRES_PASSWORD",
-        default="postgres",
-    )
-    host: str = Field(
-        alias="POSTGRES_HOST",
-        default="host.docker.internal",
-    )
-    port: int = Field(
-        alias="POSTGRES_PORT",
-        default=5432,
-    )
-    database: str = Field(
-        alias="POSTGRES_DB",
-        default="postgres",
-    )
-
-    model_config = SettingsConfigDict(
-        extra="ignore",
-        env_file=ENV_FILE,
-    )
-
-    @property
-    def database_url(self):
-        return (
-            f"postgresql+asyncpg://{self.user}:{self.password}"
-            f"@{self.host}:{self.port}/{self.database}"
-        )
-
 class RedisSettings(BaseSettings):
     enabled: bool = Field(
         alias="REDIS_ENABLED",
-        default=False,
+        default=True,
     )
     host: str = Field(
         alias="REDIS_HOST",
@@ -101,15 +56,10 @@ class RedisSettings(BaseSettings):
     )
 
     @property
-    def is_enabled(self):
-        return self.enabled
-
-    @property
-    def redis_url(self):
-        if not self.is_enabled:
+    def redis_url(self) -> str | None:
+        if not self.enabled:
             return None
         return f"redis://{self.host}:{self.port}"
-
 
 
 class RabbitMQSettings(BaseSettings):
@@ -141,6 +91,10 @@ class RabbitMQSettings(BaseSettings):
         alias="MQ_PRODUCT_ROUTING_KEY",
         default="product",
     )
+    mq_cart_queue: str = Field(
+        alias="MQ_CART_QUEUE",
+        default="cart.product_events",
+    )
 
     model_config = SettingsConfigDict(
         extra="ignore",
@@ -148,7 +102,7 @@ class RabbitMQSettings(BaseSettings):
     )
 
     @property
-    def rabbitmq_url(self):
+    def rabbitmq_url(self) -> str:
         return (
             f"amqp://{self.user}:{self.password}@"
             f"{self.host}:{self.port}/{self.vhost}"
@@ -178,23 +132,11 @@ class LoguruSettings(BaseSettings):
     )
     log_format: str = Field(
         alias="LOGURU_LOG_FORMAT",
-        default=REQUEST_LOG_FORMAT,
+        default=LOG_FORMAT,
     )
-    file_log_format: str = Field(
-        alias="LOGURU_FILE_LOG_FORMAT",
-        default=FILE_LOG_FORMAT,
-    )
-    products_log_name: str = Field(
-        alias="LOGURU_PRODUCTS_LOG_NAME",
-        default="products.log",
-    )
-    categories_log_name: str = Field(
-        alias="LOGURU_CATEGORIES_LOG_NAME",
-        default="categories.log",
-    )
-    requests_log_name: str = Field(
-        alias="LOGURU_REQUESTS_LOG_NAME",
-        default="requests.log",
+    cart_log_name: str = Field(
+        alias="LOGURU_CART_LOG_NAME",
+        default="cart.log",
     )
     slow_requests_log_name: str = Field(
         alias="LOGURU_SLOW_REQUESTS_LOG_NAME",
@@ -219,13 +161,11 @@ class Settings:
     def __init__(
         self,
         app: AppSettings,
-        postgres: PostgresSettings,
         redis: RedisSettings,
         rabbitmq: RabbitMQSettings,
         loguru: LoguruSettings,
     ):
         self.app = app
-        self.postgres = postgres
         self.redis = redis
         self.rabbitmq = rabbitmq
         self.loguru = loguru
@@ -233,7 +173,6 @@ class Settings:
 
 settings = Settings(
     app=AppSettings(),
-    postgres=PostgresSettings(),
     redis=RedisSettings(),
     rabbitmq=RabbitMQSettings(),
     loguru=LoguruSettings(),

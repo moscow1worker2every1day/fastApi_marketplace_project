@@ -1,15 +1,51 @@
-import pika
-from dotenv import load_dotenv
-import os
+"""Module for managing RabbitMQ connection."""
+from contextlib import asynccontextmanager
+from types import TracebackType
+from typing import AsyncIterator
 
-load_dotenv()
+import aio_pika
+from aio_pika.abc import AbstractChannel, AbstractRobustConnection
 
-connection_params = pika.ConnectionParameters(
-    host=os.getenv("RABBITMQ_HOST", "rabbitmq"),
-    port=int(os.getenv("RABBITMQ_PORT", "5672")))
+from app.config import settings
 
 
-def get_rabbit_connection() -> pika.BlockingConnection:
-    return pika.BlockingConnection(
-        parameters=connection_params,
-    )
+class RabbitMQConnectionManager:
+    def __init__(self) -> None:
+        self._connection: AbstractRobustConnection | None = None
+
+    async def _create_connection(self, timeout: int = 10) -> None:
+        self._connection = await aio_pika.connect_robust(
+            settings.rabbitmq.rabbitmq_url,
+            timeout=timeout,
+        )
+
+    async def _close_connection(self) -> None:
+        if self._connection is not None:
+            await self._connection.close()
+            self._connection = None
+
+    async def check_connection(self) -> AbstractRobustConnection:
+        if self._connection is None:
+            raise RuntimeError("Connection not created")
+        return self._connection
+
+    @asynccontextmanager
+    async def channel(self) -> AsyncIterator[AbstractChannel]:
+        connection = await self.check_connection()
+        channel = await connection.channel()
+        try:
+            yield channel
+        finally:
+            await channel.close()
+
+    async def __aenter__(self) -> "RabbitMQConnectionManager":
+        await self._create_connection()
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        await self._close_connection()

@@ -61,7 +61,7 @@ class CategoryService:
 
     @staticmethod
     @redis_cache(key_prefix=CATEGORY_CACHE_PREFIX)
-    async def get_category_by_id(session: AsyncSession, category_id: int) -> GetCategory:
+    async def get_category_by_id(session: AsyncSession, category_id: UUID) -> GetCategory:
         try:
             category_orm = await CategoryRepository.get_category_by_id(session=session, category_id=category_id)
             return GetCategory.from_orm(category_orm)
@@ -72,7 +72,7 @@ class CategoryService:
             )
 
     @staticmethod
-    async def delete_category_by_id(id: int, session: AsyncSession) -> GetCategory:
+    async def delete_category_by_id(id: UUID, session: AsyncSession) -> GetCategory:
         try:
             deleted_category_orm = await CategoryRepository.delete_category(category_id=id, session=session)
             return GetCategory.from_orm(deleted_category_orm)
@@ -88,7 +88,7 @@ class CategoryService:
         session: AsyncSession,
         name: str,
         description: str | None,
-        parent_id: int | None,
+        parent_id: UUID | None,
     ) -> GetCategory:
         """Create a new category in 'categories' table."""
         categories_logger.info(f"Creating new category: name={name}, description={description}, parent_id={parent_id}")

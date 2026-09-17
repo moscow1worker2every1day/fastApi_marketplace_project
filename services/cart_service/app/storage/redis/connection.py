@@ -1,57 +1,45 @@
-import os
-
-from dotenv import load_dotenv
 from redis.asyncio import Redis
 from redis.exceptions import RedisError
 
-from app.logging import log
+from app.config import settings
+from app.log import startup_logger
 
-load_dotenv()
-
-REDIS_HOST = os.getenv("REDIS_HOST_TEST", "redis")
-REDIS_PORT = os.getenv("REDIS_PORT", "6379")
-
-redis_connection: Redis | None = None  # глобальная переменная для singleton
-
-
-class RedisService:
+class RedisConnection:
+    _connection: Redis | None = None
 
     @classmethod
-    async def init(cls):
-        global redis_connection
-        if redis_connection is None:
+    async def init(cls) -> None:
+        if cls._connection is None:
             try:
-                redis_connection = Redis(
-                    host=REDIS_HOST,
-                    port=REDIS_PORT,
-                    decode_responses=True
+                cls._connection = Redis(
+                    host=settings.redis.host,
+                    port=settings.redis.port,
+                    decode_responses=True,
                 )
-                log.info("Redis connection established")
+                startup_logger.info(
+                    "Redis connection established at %s:%s",
+                    settings.redis.host,
+                    settings.redis.port,
+                )
             except (ConnectionError, TimeoutError) as exc:
-                log.exception("Cannot connect to Redis")
-                raise RedisError
+                startup_logger.error("Cannot connect to Redis: %s", exc)
+                raise RedisError("Cannot connect to Redis") from exc
 
-    @staticmethod
-    async def check_redis_connection() -> Redis:
-        """Проверка подключения Redis"""
-        if redis_connection is None:
+    @classmethod
+    async def check_redis_connection(cls) -> bool:
+        if cls._connection is None:
             raise RuntimeError("Redis not initialized")
-        pong = await redis_connection.ping()
-
-        return redis_connection
+        return bool(await cls._connection.ping())
 
     @classmethod
     def get_connection(cls) -> Redis:
-        """Получить экземпляр Redis"""
-        if redis_connection is None:
+        if cls._connection is None:
             raise RuntimeError("Redis not initialized")
-        return redis_connection
+        return cls._connection
 
     @classmethod
-    async def close(cls):
-        """Закрыть соединение Redis при shutdown"""
-        global redis_connection
-        if redis_connection:
-            await redis_connection.close()
-            redis_connection = None
+    async def close(cls) -> None:
+        if cls._connection is not None:
+            await cls._connection.close()
+            cls._connection = None
             log.info("Redis connection closed")

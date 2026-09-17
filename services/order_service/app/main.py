@@ -1,4 +1,6 @@
 from enum import Enum
+from uuid import UUID
+
 from fastapi import FastAPI, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, PlainTextResponse
@@ -27,7 +29,7 @@ async def request_validation_error_handler(request, exc: RequestValidationError)
 
 # pass указывает что переменная соответствует любому пути
 @app.get("/orders/{order_type}/{order_id:path}")
-async def read_order(order_type: OrderType, order_id: int):
+async def read_order(order_type: OrderType, order_id: UUID):
     if order_type is OrderType.order_type3:
         pass
     else:

@@ -46,6 +46,7 @@ class DatabaseManager:
                 raise
             finally:
                 await session.close()
+
     @staticmethod
     async def check_connection(session: AsyncSession, retries: int = 10, delay: int = 1) -> bool:
         """

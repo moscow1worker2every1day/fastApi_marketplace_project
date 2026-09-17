@@ -1,16 +1,18 @@
 from typing import List
 from uuid import UUID
+
 from fastapi import HTTPException, status
-from app.constants import PRODUCTS_CACHE_PREFIX,PRODUCT_CACHE_PREFIX
-from app.storage.redis.cache import redis_cache
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.constants import PRODUCTS_CACHE_PREFIX
 from app.enums import DeleteProductMode
-from app.storage.postgresql.models.product_model import ProductOrm
 from app.log import products_logger
-from app.storage.postgresql.repositories.product_repository import ProductRepository
+from app.messaging.rabbitMQ.publishers.ProductEventPublisher import ProductEventPublisher
 from app.schemas.product import GetProduct
+from app.storage.postgresql.models.product_model import ProductOrm
+from app.storage.postgresql.repositories.product_repository import ProductRepository
+from app.storage.redis.cache import redis_cache
 
 
 class ProductService:
@@ -57,7 +59,7 @@ class ProductService:
     async def delete_product(
         *,
         session: AsyncSession,
-        product_id: int,
+        product_id: UUID,
         mode: DeleteProductMode,
     ) -> GetProduct:
         try:
@@ -69,8 +71,17 @@ class ProductService:
                 session=session,
                 product_id=product_id,
             )
-            # await Publisher.publish_product_change(delete_product_orm, f"product.delete.{mode}")
+            event = (
+                "product.deleted"
+                if mode == DeleteProductMode.DELETE
+                else "product.unavailable"
+            )
+            await ProductEventPublisher.publish_product_change(
+                delete_product_orm,
+                event,
+            )
             return ProductService._to_get_product(delete_product_orm)
+
         except ValueError as e:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -98,7 +109,10 @@ class ProductService:
                 seller_id=seller_id,
                 session=session
             )
-            # await Publisher.publish_product_change(product, "create")
+            await ProductEventPublisher.publish_product_change(
+                new_product_orm,
+                "product.created",
+            )
             return ProductService._to_get_product(new_product_orm)
         
         except IntegrityError as e:
