@@ -1,14 +1,34 @@
 import asyncio
+import sys
+from pathlib import Path
 from typing import Annotated
 
 from fastapi import Depends
-from app.log import startup_logger
-from app.storage.postgresql.models.base_model import Base
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import AsyncAdaptedQueuePool
 
 from app.config import settings
+from app.log import startup_logger
+from app.storage.postgresql.models import Base
+from app.storage.postgresql.models import category_model, product_model  # noqa: F401
+
+
+def _import_alembic():
+    """Import real alembic package, avoiding shadow by local alembic/ folder."""
+    service_root = str(Path(__file__).resolve().parents[3])
+    removed: list[str] = []
+    for path in (service_root, "", str(Path.cwd())):
+        while path in sys.path:
+            sys.path.remove(path)
+            removed.append(path)
+    try:
+        from alembic import command
+        from alembic.config import Config
+    finally:
+        for path in reversed(removed):
+            sys.path.insert(0, path)
+    return command, Config
 
 
 class DatabaseManager:
@@ -40,14 +60,14 @@ class DatabaseManager:
                 raise
             finally:
                 await session.close()
-    
+
     @staticmethod
     async def check_connection(session: AsyncSession, retries: int = 10, delay: int = 1) -> bool:
         """Checking the connection to the database."""
         for i in range(retries):
             try:
                 await session.execute(text("SELECT 1"))
-                startup_logger.info(f"Connected to the database successfully")
+                startup_logger.info("Connected to the database successfully")
                 return True
             except Exception as e:
                 if i == retries - 1:
@@ -62,17 +82,27 @@ class DatabaseManager:
                 await asyncio.sleep(delay)
 
     @staticmethod
-    async def create_tables() -> None:
-        """Creating tables in the database from SQLAlchemy metadata."""
+    async def run_migrations(session: AsyncSession) -> None:
+        """Runs migrations, then ensures ORM tables exist."""
         try:
-            async with DatabaseManager.engine.begin() as conn:
-                await conn.run_sync(Base.metadata.create_all)
-        except Exception as e:
-            startup_logger.error(
-                "Failed to database create tables: "
-                f"{type(e).__name__} - {e}"
+            command, Config = _import_alembic()
+            alembic_cfg = Config(settings.alembic.alembic_ini_path)
+            alembic_cfg.set_main_option(
+                "script_location",
+                settings.alembic.alembic_path,
             )
-            raise
+            alembic_cfg.set_main_option(
+                "sqlalchemy.url",
+                settings.postgres.sync_database_url,
+            )
+            command.upgrade(alembic_cfg, "head")
+            startup_logger.info("Migrations completed successfully.")
+        except Exception as e:
+            startup_logger.warning(
+                f"Migrations failed: {type(e).__name__} - {e}. "
+                "Attempting to create tables directly."
+            )
+            raise e
 
 
 SessionDep = Annotated[AsyncSession, Depends(DatabaseManager.get_session)]

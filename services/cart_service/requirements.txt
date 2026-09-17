@@ -1,5 +1,6 @@
 aio-pika==9.5.8
 fastapi==0.120.1
+loguru==0.7.3
 pydantic-settings==2.11.0
 python-dotenv==1.2.1
 redis[asyncio]==7.0.1

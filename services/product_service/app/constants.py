@@ -4,9 +4,6 @@
 # Slow request threshold in seconds (the same log goes into requests and slow_requests).
 SLOW_REQUEST_THRESHOLD_SEC = 1.0
 
-# Default environment file
-DEFAULT_ENV_FILE = ".env"
-
 # Redis cache key prefix for product read endpoints
 PRODUCT_CACHE_PREFIX = "product"
 PRODUCTS_CACHE_PREFIX = "products"

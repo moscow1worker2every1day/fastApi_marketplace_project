@@ -5,7 +5,7 @@ from fastapi import FastAPI
 
 from app.api.cart_router import router
 from app.config import settings
-from app.logging import log
+from app.log import startup_logger
 from app.messaging.rabbitmq.connection import RabbitMQConnectionManager
 from app.messaging.rabbitmq.consumer import start_product_events_consumer
 from app.middlewares.middleware import catch_server_error
@@ -17,23 +17,23 @@ async def lifespan(app: FastAPI):
     consumer_task: asyncio.Task | None = None
 
     try:
-        log.info("Startup cart-service")
+        startup_logger.info("Startup cart-service")
         await RedisService.init()
         await RedisService.check_redis_connection()
-        log.info("Redis connection is successful")
+        startup_logger.info("Redis connection is successful")
 
         async with RabbitMQConnectionManager() as connection:
             await connection.check_connection()
             app.state.rabbitmq_connection = connection
-            log.info("RabbitMQ connection is successful")
+            startup_logger.info("RabbitMQ connection is successful")
 
             consumer_task = asyncio.create_task(start_product_events_consumer())
-            log.info("RabbitMQ consumer started")
-            log.info("Service is ready to accept requests.")
+            startup_logger.info("RabbitMQ consumer started")
+            startup_logger.info("Service is ready to accept requests.")
             yield
-            log.info("Shutting down cart-service...")
+            startup_logger.info("Shutting down cart-service...")
     except Exception as e:
-        log.exception("Startup failed: %s", e)
+        startup_logger.exception("Startup failed: %s", e)
         raise
     finally:
         if consumer_task is not None:

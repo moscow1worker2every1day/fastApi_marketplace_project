@@ -56,6 +56,6 @@ def configure_logging():
 
 configure_logging()
 
-log = logger.bind(route_group="startup")
+startup_logger = logger.bind(route_group="startup")
 cart_logger = logger.bind(route_group="cart")
 request_logger = logger.bind(route_group="requests")

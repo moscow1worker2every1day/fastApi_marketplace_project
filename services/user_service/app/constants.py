@@ -4,9 +4,6 @@
 # Slow request threshold in seconds (the same log goes into requests and slow_requests).
 SLOW_REQUEST_THRESHOLD_SEC = 1.0
 
-# Default environment file
-DEFAULT_ENV_FILE = ".env"
-
 # Users list pagination
 DEFAULT_USERS_LIMIT = 100
 MAX_USERS_LIMIT = 1000

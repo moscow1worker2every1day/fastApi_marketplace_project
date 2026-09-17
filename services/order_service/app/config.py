@@ -3,7 +3,7 @@ import os
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from app.constants import DEFAULT_ENV_FILE, FILE_LOG_FORMAT, REQUEST_LOG_FORMAT
+from app.constants import DEFAULT_ENV_FILE, REQUEST_LOG_FORMAT
 from app.utils import _get_project_directory
 
 
@@ -14,7 +14,7 @@ PROJECT_ROOT = _get_project_directory()
 class AppSettings(BaseSettings):
     app_name: str = Field(
         alias="COMPOSE_PROJECT_NAME",
-        default="product-service",
+        default="order-service",
     )
     host: str = Field(
         alias="APP_HOST",
@@ -22,15 +22,7 @@ class AppSettings(BaseSettings):
     )
     port: int = Field(
         alias="APP_INTERNAL_PORT",
-        default=8001,
-    )
-    reload: bool = Field(
-        alias="APP_RELOAD",
-        default=True,
-    )
-    workers: int = Field(
-        alias="APP_WORKERS",
-        default=4,
+        default=8003,
     )
     version: str = Field(
         alias="DEPLOY_VERSION",
@@ -100,84 +92,6 @@ class AlembicSettings(BaseSettings):
     )
 
 
-class RedisSettings(BaseSettings):
-    enabled: bool = Field(
-        alias="REDIS_ENABLED",
-        default=False,
-    )
-    host: str = Field(
-        alias="REDIS_HOST",
-        default="redis",
-    )
-    port: int = Field(
-        alias="REDIS_PORT",
-        default=6379,
-    )
-    default_ttl: int = Field(
-        alias="REDIS_CACHE_TTL",
-        default=60,
-    )
-
-    model_config = SettingsConfigDict(
-        extra="ignore",
-        env_file=ENV_FILE,
-    )
-
-    @property
-    def is_enabled(self):
-        return self.enabled
-
-    @property
-    def redis_url(self):
-        if not self.is_enabled:
-            return None
-        return f"redis://{self.host}:{self.port}"
-
-
-
-class RabbitMQSettings(BaseSettings):
-    user: str = Field(
-        alias="RABBITMQ_USER",
-        default="guest",
-    )
-    password: str = Field(
-        alias="RABBITMQ_PASSWORD",
-        default="guest",
-    )
-    host: str = Field(
-        alias="RABBITMQ_HOST",
-        default="rabbitmq",
-    )
-    port: int = Field(
-        alias="RABBITMQ_PORT",
-        default=5672,
-    )
-    vhost: str = Field(
-        alias="RABBITMQ_VHOST",
-        default="/",
-    )
-    mq_product_exchange: str = Field(
-        alias="MQ_PRODUCT_EXCHANGE",
-        default="Product",
-    )
-    mq_product_routing_key: str = Field(
-        alias="MQ_PRODUCT_ROUTING_KEY",
-        default="product",
-    )
-
-    model_config = SettingsConfigDict(
-        extra="ignore",
-        env_file=ENV_FILE,
-    )
-
-    @property
-    def rabbitmq_url(self):
-        return (
-            f"amqp://{self.user}:{self.password}@"
-            f"{self.host}:{self.port}/{self.vhost}"
-        )
-
-
 class LoguruSettings(BaseSettings):
     logs_dir: str = Field(
         alias="LOGURU_LOGS_DIR",
@@ -203,21 +117,9 @@ class LoguruSettings(BaseSettings):
         alias="LOGURU_LOG_FORMAT",
         default=REQUEST_LOG_FORMAT,
     )
-    file_log_format: str = Field(
-        alias="LOGURU_FILE_LOG_FORMAT",
-        default=FILE_LOG_FORMAT,
-    )
-    products_log_name: str = Field(
-        alias="LOGURU_PRODUCTS_LOG_NAME",
-        default="products.log",
-    )
-    categories_log_name: str = Field(
-        alias="LOGURU_CATEGORIES_LOG_NAME",
-        default="categories.log",
-    )
-    requests_log_name: str = Field(
-        alias="LOGURU_REQUESTS_LOG_NAME",
-        default="requests.log",
+    order_log_name: str = Field(
+        alias="LOGURU_ORDER_LOG_NAME",
+        default="order.log",
     )
     slow_requests_log_name: str = Field(
         alias="LOGURU_SLOW_REQUESTS_LOG_NAME",
@@ -237,30 +139,22 @@ class LoguruSettings(BaseSettings):
         env_file=ENV_FILE,
     )
 
-
 class Settings:
     def __init__(
         self,
         app: AppSettings,
         postgres: PostgresSettings,
         alembic: AlembicSettings,
-        redis: RedisSettings,
-        rabbitmq: RabbitMQSettings,
         loguru: LoguruSettings,
     ):
         self.app = app
         self.postgres = postgres
         self.alembic = alembic
-        self.redis = redis
-        self.rabbitmq = rabbitmq
         self.loguru = loguru
-
 
 settings = Settings(
     app=AppSettings(),
     postgres=PostgresSettings(),
     alembic=AlembicSettings(),
-    redis=RedisSettings(),
-    rabbitmq=RabbitMQSettings(),
     loguru=LoguruSettings(),
 )

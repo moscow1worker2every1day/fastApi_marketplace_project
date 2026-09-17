@@ -28,8 +28,8 @@ async def lifespan(app: FastAPI):
         async with DatabaseManager.session_factory() as session:
             startup_logger.info("Checking the connection to the database...")
             await DatabaseManager.check_connection(session)
-            startup_logger.info("Creating tables in the database...")
-            await DatabaseManager.create_tables()
+            startup_logger.info("Running database migrations...")
+            await DatabaseManager.run_migrations(session)
     except Exception as e:
         startup_logger.error(
             "Connection to the database failed: "
@@ -53,7 +53,7 @@ async def lifespan(app: FastAPI):
             raise
 
     try:
-        async with RabbitMQConnectionManager as rabbit_manager:
+        async with RabbitMQConnectionManager() as rabbit_manager:
             startup_logger.info("Checking the connection to the RabbitMQ...")
             await rabbit_manager.check_connection()
             app.state.rabbitmq_connection = rabbit_manager

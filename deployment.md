@@ -135,7 +135,20 @@ docker compose exec user_service alembic upgrade head
 
 ### product_service
 
-Отдельного Alembic пока нет: таблицы создаются при lifespan-старте (`create_tables`).
+При старте сервиса выполняется Alembic `upgrade head`, затем проверка схемы через SQLAlchemy `create_all` (как в user_service). Начальная ревизия: `categories` + `products`.
+
+```bash
+docker compose exec product_service alembic upgrade head
+```
+
+### order_service
+
+Alembic и ORM-модели (`orders`, `order_items`) уже добавлены. Сервис пока не в Compose и не поднимает lifespan с БД — миграции запускаются вручную, когда появится Postgres:
+
+```bash
+cd services/order_service
+alembic upgrade head
+```
 
 ---
 
@@ -262,7 +275,7 @@ uv run pytest tests/e2e -m e2e
 
 ---
 
-## 11. Рекомендации для «почти production»
+## 11. Рекомендации
 
 - Убрать bind-mount исходников и флаг `--reload`; задать фиксированное число workers.
 - Собирать зависимости через `uv sync --frozen` в Dockerfile.

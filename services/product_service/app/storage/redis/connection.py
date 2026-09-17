@@ -1,8 +1,9 @@
 from redis.asyncio import Redis
-from services.product_service.app.config import settings
+
+from app.config import settings
+
 
 class RedisConnection:
-
     _client: Redis | None = None
 
     @classmethod
@@ -11,14 +12,13 @@ class RedisConnection:
             try:
                 await cls._client.ping()
                 return
-            except Exception as e:
+            except Exception:
                 await cls._client.aclose()
-                raise e
-        
+                cls._client = None
+
         cls._client = Redis(
             host=settings.redis.host,
             port=settings.redis.port,
-            password=settings.redis.password,
             decode_responses=True,
             encoding="utf-8",
         )
@@ -28,26 +28,22 @@ class RedisConnection:
         if cls._client is not None:
             await cls._client.aclose()
             cls._client = None
-    
+
     @classmethod
     def client(cls) -> Redis:
         if cls._client is None:
             raise RuntimeError("Redis connection not established")
         return cls._client
 
-    # @asynccontextmanager
-    # async def connection(cls) -> AsyncGenerator[Redis, None]:
-    #     try:
-    #         await cls._create_connection()
-    #         yield cls._client
-    #     finally:
-    #         await cls._close_connection()
-
     @classmethod
     async def __aenter__(cls) -> Redis:
         await cls._create_connection()
         return cls._client
-    
+
     @classmethod
-    async def __aexit__(cls, exc_type: type[BaseException] | None, exc_value: BaseException | None, traceback: TracebackType | None) -> None:
+    async def __aexit__(
+        cls,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+    ) -> None:
         await cls._close_connection()

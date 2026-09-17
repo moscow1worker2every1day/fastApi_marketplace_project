@@ -64,22 +64,22 @@ services:
     networks:
       - backend
 
-  # redis:
-  #   image: redis:7
-  #   container_name: redis
-  #   restart: unless-stopped
-  #   command: ["redis-server", "--appendonly", "yes"]
-  #   ports:
-  #     - "6379:6379"
-  #   volumes:
-  #     - redis_data:/data
-  #   healthcheck:
-  #     test: ["CMD", "redis-cli", "ping"]
-  #     interval: 5s
-  #     timeout: 3s
-  #     retries: 5
-  #   networks:
-  #     - backend
+  redis:
+    image: redis:7
+    container_name: redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - backend
 
   user_service:
     build:
@@ -159,28 +159,48 @@ services:
     networks:
       - backend
 
-  # cart_service:
-  #   build:
-  #     context: ./services/cart_service
-  #   container_name: cart_service
-  #   restart: unless-stopped
-  #   env_file:
-  #     - ./services/cart_service/.env.docker
-  #   environment:
-  #     HOST: ${CART_APP_INTERNAL_HOST}
-  #     PORT: ${CART_APP_INTERNAL_PORT}
-  #   depends_on:
-  #     redis:
-  #       condition: service_healthy
-  #   ports:
-  #     - "${CART_APP_EXTERNAL_PORT}:${CART_APP_INTERNAL_PORT}"
-  #   networks:
-  #     - backend
+  cart_service:
+    build:
+      context: ./services/cart_service
+    container_name: cart_service
+    restart: unless-stopped
+    env_file:
+      - ./services/cart_service/.env.docker
+    environment:
+      APP_HOST: ${CART_APP_INTERNAL_HOST}
+      APP_INTERNAL_PORT: ${CART_APP_INTERNAL_PORT}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: ${RABBITMQ_USER}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+    depends_on:
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - ./services/cart_service:/code
+    command:
+      - sh
+      - -c
+      - uvicorn app.main:app --host ${CART_APP_INTERNAL_HOST} --port ${CART_APP_INTERNAL_PORT} --reload
+    ports:
+      - "${CART_APP_EXTERNAL_PORT}:${CART_APP_INTERNAL_PORT}"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://${CART_APP_INTERNAL_HOST}:${CART_APP_INTERNAL_PORT}/healthcheck || exit 1"]
+      interval: 180s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - backend
 
 volumes:
   postgres_user_data:
   postgres_product_data:
-  # redis_data:
+  redis_data:
 
 networks:
   backend:

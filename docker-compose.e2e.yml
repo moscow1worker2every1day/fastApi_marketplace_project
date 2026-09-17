@@ -1,0 +1,79 @@
+# Overlay для e2e: отдельные container_name/порты, без --reload,
+# быстрые healthcheck, эфемерные DB volume. Можно параллельно с dev-стеком.
+#
+# Код сервисов монтируется с хоста (как в dev), чтобы правки сразу попадали в e2e.
+# После изменения requirements.txt нужен --build.
+#
+# Запуск:
+#   docker compose --env-file .env.e2e -f docker-compose.yml -f docker-compose.e2e.yml \
+#     -p marketplace-e2e up --build -d
+
+services:
+  postgres_user:
+    container_name: e2e_postgres_user
+    volumes:
+      - postgres_user_e2e_data:/var/lib/postgresql/data
+
+  postgres_product:
+    container_name: e2e_postgres_product
+    volumes:
+      - postgres_product_e2e_data:/var/lib/postgresql/data
+
+  rabbitmq:
+    container_name: e2e_rabbitmq
+    ports: !override
+      - "${E2E_RABBITMQ_PORT:-5673}:5672"
+      - "${E2E_RABBITMQ_UI_PORT:-15673}:15672"
+
+  redis:
+    container_name: e2e_redis
+    ports: !override
+      - "${E2E_REDIS_PORT:-6380}:6379"
+    volumes:
+      - redis_e2e_data:/data
+
+  user_service:
+    container_name: e2e_user_service
+    environment:
+      POSTGRES_PORT: 5432
+    command:
+      - sh
+      - -c
+      - uvicorn app.main:app --host ${USER_APP_INTERNAL_HOST} --port ${USER_APP_INTERNAL_PORT}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://${USER_APP_INTERNAL_HOST}:${USER_APP_INTERNAL_PORT}/healthcheck || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 25s
+
+  product_service:
+    container_name: e2e_product_service
+    command:
+      - sh
+      - -c
+      - uvicorn app.main:app --host ${PRODUCT_APP_INTERNAL_HOST} --port ${PRODUCT_APP_INTERNAL_PORT}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://${PRODUCT_APP_INTERNAL_HOST}:${PRODUCT_APP_INTERNAL_PORT}/healthcheck || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 25s
+
+  cart_service:
+    container_name: e2e_cart_service
+    command:
+      - sh
+      - -c
+      - uvicorn app.main:app --host ${CART_APP_INTERNAL_HOST} --port ${CART_APP_INTERNAL_PORT}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://${CART_APP_INTERNAL_HOST}:${CART_APP_INTERNAL_PORT}/healthcheck || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 25s
+
+volumes:
+  postgres_user_e2e_data:
+  postgres_product_e2e_data:
+  redis_e2e_data:

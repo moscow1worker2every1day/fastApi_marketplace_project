@@ -4,7 +4,7 @@ from redis.exceptions import RedisError
 from app.config import settings
 from app.log import startup_logger
 
-class RedisConnection:
+class RedisService:
     _connection: Redis | None = None
 
     @classmethod
@@ -42,4 +42,4 @@ class RedisConnection:
         if cls._connection is not None:
             await cls._connection.close()
             cls._connection = None
-            log.info("Redis connection closed")
+            startup_logger.info("Redis connection closed")

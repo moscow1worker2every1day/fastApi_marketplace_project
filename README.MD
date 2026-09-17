@@ -92,7 +92,7 @@ docker compose up --build
 ## Стек
 
 - **API:** FastAPI, Uvicorn  
-- **БД:** PostgreSQL 16, SQLAlchemy 2 (asyncpg), Alembic (user_service)  
+- **БД:** PostgreSQL 16, SQLAlchemy 2 (asyncpg), Alembic (user / product / order)  
 - **Кэш / корзина:** Redis  
 - **Очереди:** RabbitMQ 3 (Management)  
 - **Auth:** JWT RS256, OAuth2 password flow, bcrypt  
@@ -107,7 +107,7 @@ docker compose up --build
 1. **Реализовать order_service** — checkout из корзины, статусы заказа, резерв остатков; паттерн saga / transactional outbox.
 2. **API Gateway / BFF** — единая точка входа, проверка JWT один раз, rate limiting, маршрутизация.
 3. **Общая аутентификация между сервисами** — раздача public key / JWKS, Bearer на product/cart/order (сейчас JWT сосредоточен в user_service).
-4. **Миграции для product (и order)** — Alembic вместо `create_all` на старте.
+4. ~~**Миграции для product (и order)** — Alembic вместо `create_all` на старте.~~ 
 5. **Observability** — Prometheus-метрики, OpenTelemetry-трейсы, correlation id через HTTP и MQ.
 6. **CI/CD** — прогон pytest, smoke healthcheck после `compose up`, нагрузочные сценарии на базе `seed_users`.
 7. **Production Docker** — сборка через `uv sync`, без bind-mount и `--reload`; единая версия Python во всех образах.
