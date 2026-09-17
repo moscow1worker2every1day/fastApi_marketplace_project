@@ -11,6 +11,7 @@ from app.log import configure_logging, startup_logger
 from app.middlewares.middleware import log_requests
 from app.storage.postgresql.connection import DatabaseManager, SessionDep
 from app.messaging.rabbitMQ.connection import RabbitMQConnectionManager
+from app.storage.redis.connection import RedisConnection
 
 
 configure_logging()
@@ -37,8 +38,22 @@ async def lifespan(app: FastAPI):
         )
         raise
 
+    if settings.redis.is_enabled:
+        try:
+            async with RedisConnection as redis:
+                startup_logger.info("Checking the connection to the Redis...")
+                app.state.redis_connection = redis
+                startup_logger.info("Connected to Redis")
+        except Exception as e:
+            startup_logger.error(
+                "Connection to the Redis failed: "
+                f"{type(e).__name__} - {e}. "
+                "Shuting down service..."
+            )
+            raise
+
     try:
-        async with RabbitMQConnectionManager() as rabbit_manager:
+        async with RabbitMQConnectionManager as rabbit_manager:
             startup_logger.info("Checking the connection to the RabbitMQ...")
             await rabbit_manager.check_connection()
             app.state.rabbitmq_connection = rabbit_manager

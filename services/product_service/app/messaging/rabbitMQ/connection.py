@@ -11,21 +11,20 @@ from app.config import settings
 
 class RabbitMQConnectionManager:
 
-    def __init__(self) -> None:
-        self.__connection: AbstractRobustConnection | None = None
+    _connection: AbstractRobustConnection | None = None
+
+    async def _create_connection(self, timeout: int = 10) -> None:
+        self.__connection: AbstractRobustConnection = await aio_pika.connect_robust(
+            settings.rabbitmq.rabbitmq_url,
+            timeout=timeout,
+        )
 
     def __repr__(self) -> str:
         return (
             f"<{self.__class__.__name__}: "
             f"connection={self.__connection}>"
         )
-
-    async def _create_connection(self, timeout: int = 10) -> None:
-        self.__connection = await aio_pika.connect_robust(
-            settings.rabbitmq.rabbitmq_url,
-            timeout=timeout,
-        )
-
+    
     async def _close_connection(self) -> None:
         if self.__connection is not None:
             await self.__connection.close()

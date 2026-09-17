@@ -1,6 +1,8 @@
 from typing import List
 from uuid import UUID
 from fastapi import HTTPException, status
+from app.constants import CATEGORIES_CACHE_PREFIX, CATEGORY_CACHE_PREFIX
+from app.storage.redis.cache import redis_cache
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -47,6 +49,7 @@ class CategoryService:
             )
 
     @staticmethod
+    @redis_cache(key_prefix=CATEGORIES_CACHE_PREFIX)
     async def get_all_categories(session: AsyncSession) -> List[GetCategory]:
         categories_orm = await CategoryRepository.get_categories(session)
         if not categories_orm:
@@ -57,6 +60,7 @@ class CategoryService:
         return [GetCategory.from_orm(cat) for cat in categories_orm]
 
     @staticmethod
+    @redis_cache(key_prefix=CATEGORY_CACHE_PREFIX)
     async def get_category_by_id(session: AsyncSession, category_id: int) -> GetCategory:
         try:
             category_orm = await CategoryRepository.get_category_by_id(session=session, category_id=category_id)

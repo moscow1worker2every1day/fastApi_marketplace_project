@@ -9,8 +9,11 @@ from app.services.product_service import ProductService
 from app.storage.postgresql.connection import SessionDep
 from app.storage.postgresql.repositories.product_repository import ProductRepository
 from app.messaging.rabbitMQ.publishers.UserServicePublisher import UserServicePublisher
+from app.constants import PRODUCT_CACHE_PREFIX
+from app.storage.redis.cache import redis_cache
 
 
+@redis_cache(key_prefix=PRODUCT_CACHE_PREFIX)
 async def get_target_product(
     product_id: Annotated[UUID, Path(description="Product ID")],
     session: SessionDep,

@@ -8,8 +8,11 @@ from sqlalchemy.exc import NoResultFound
 from app.storage.postgresql.connection import SessionDep
 from app.storage.postgresql.models.category_model import CategoryOrm
 from app.storage.postgresql.repositories.category_repository import CategoryRepository
+from app.constants import CATEGORY_CACHE_PREFIX
+from app.storage.redis.cache import redis_cache
 
 
+@redis_cache(key_prefix=CATEGORY_CACHE_PREFIX)
 async def get_target_category(
     category_id: UUID,
     session: SessionDep,

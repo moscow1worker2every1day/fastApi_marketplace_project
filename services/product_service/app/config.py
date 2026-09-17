@@ -77,6 +77,40 @@ class PostgresSettings(BaseSettings):
             f"@{self.host}:{self.port}/{self.database}"
         )
 
+class RedisSettings(BaseSettings):
+    enabled: bool = Field(
+        alias="REDIS_ENABLED",
+        default=False,
+    )
+    host: str = Field(
+        alias="REDIS_HOST",
+        default="redis",
+    )
+    port: int = Field(
+        alias="REDIS_PORT",
+        default=6379,
+    )
+    default_ttl: int = Field(
+        alias="REDIS_CACHE_TTL",
+        default=60,
+    )
+
+    model_config = SettingsConfigDict(
+        extra="ignore",
+        env_file=ENV_FILE,
+    )
+
+    @property
+    def is_enabled(self):
+        return self.enabled
+
+    @property
+    def redis_url(self):
+        if not self.is_enabled:
+            return None
+        return f"redis://{self.host}:{self.port}"
+
+
 
 class RabbitMQSettings(BaseSettings):
     user: str = Field(
@@ -186,11 +220,13 @@ class Settings:
         self,
         app: AppSettings,
         postgres: PostgresSettings,
+        redis: RedisSettings,
         rabbitmq: RabbitMQSettings,
         loguru: LoguruSettings,
     ):
         self.app = app
         self.postgres = postgres
+        self.redis = redis
         self.rabbitmq = rabbitmq
         self.loguru = loguru
 
@@ -198,6 +234,7 @@ class Settings:
 settings = Settings(
     app=AppSettings(),
     postgres=PostgresSettings(),
+    redis=RedisSettings(),
     rabbitmq=RabbitMQSettings(),
     loguru=LoguruSettings(),
 )

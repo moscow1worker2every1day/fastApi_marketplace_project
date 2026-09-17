@@ -1,6 +1,8 @@
 from typing import List
 from uuid import UUID
 from fastapi import HTTPException, status
+from app.constants import PRODUCTS_CACHE_PREFIX,PRODUCT_CACHE_PREFIX
+from app.storage.redis.cache import redis_cache
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -30,11 +32,12 @@ class ProductService:
         return ProductService._to_get_product(product_orm)
 
     @staticmethod
+    @redis_cache(key_prefix=PRODUCTS_CACHE_PREFIX)
     async def get_products(
         *,
+        category_id: UUID | None,
         session: AsyncSession,
         only_available: bool,
-        category_id: UUID | None,
         limit: int,
         offset: int,
     ) -> List[GetProduct]:

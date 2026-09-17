@@ -7,6 +7,12 @@ SLOW_REQUEST_THRESHOLD_SEC = 1.0
 # Default environment file
 DEFAULT_ENV_FILE = ".env"
 
+# Redis cache key prefix for product read endpoints
+PRODUCT_CACHE_PREFIX = "product"
+PRODUCTS_CACHE_PREFIX = "products"
+CATEGORY_CACHE_PREFIX = "category"
+CATEGORIES_CACHE_PREFIX = "categories"
+
 # OpenAPI examples (description, examples, etc.)
 EXAMPLE_UUID = "550e8400-e29b-41d4-a716-446655440001"
 
