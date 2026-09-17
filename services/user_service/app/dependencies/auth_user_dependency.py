@@ -130,10 +130,10 @@ SelfUserDep = Annotated[GetUser, Depends(get_current_user_self)]
 
 
 async def get_current_user_self_or_admin(
+    user_id: UUID,
     current_user: ActiveUserDep,
-    payload: Annotated[dict, Depends(get_current_token_type(TokenType.ACCESS_TOKEN_TYPE))],
 ) -> GetUser:
-    if current_user.role == UserRoles.admin or str(current_user.id) == payload.get("sub"):
+    if current_user.role == UserRoles.admin or current_user.id == user_id:
         return current_user
     raise HTTPException(
         status_code=status.HTTP_403_FORBIDDEN,

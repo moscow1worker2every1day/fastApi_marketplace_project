@@ -134,14 +134,7 @@ class UserRepository:
         user_role: UserRoles,
     ) -> list[UserOrm]:
         query = (
-            select(
-                UserOrm.id,
-                UserOrm.first_name,
-                UserOrm.last_name,
-                UserOrm.email,
-                UserOrm.created_at,
-                UserOrm.updated_at,
-            )
+            select(UserOrm)
             .filter(UserOrm.role == user_role)
             .order_by(*UserRepository._build_users_order_by(sort_by, sort_order))
             .limit(limit)

@@ -99,7 +99,7 @@ Black-box pytest + httpx: smoke health, роли/auth, каталог, RPC selle
 
 | Скрипт | Поведение |
 |--------|-----------|
-| `scripts/e2e/run.sh` | `up -d [--build]` → `pytest tests/e2e` → `down -v` |
+| `scripts/e2e/run.sh` | `up -d [--build]` → `pytest tests/e2e` |
 | `scripts/e2e/run.ps1` | то же (`-NoBuild` / `--no-build` без пересборки) |
 
 ```bash
@@ -110,6 +110,12 @@ Black-box pytest + httpx: smoke health, роли/auth, каталог, RPC selle
 # Windows
 .\scripts\e2e\run.ps1
 .\scripts\e2e\run.ps1 -NoBuild
+```
+
+Стек после прогона остаётся запущенным. Остановка:
+
+```bash
+docker compose --env-file .env.e2e -f docker-compose.yml -f docker-compose.e2e.yml -p marketplace-e2e down -v
 ```
 
 E2E использует **смещённые порты** (по умолчанию `18000` / `18001` / `18002`), чтобы не конфликтовать с dev-стеком. Шаблон: `.env.e2e.example` → `.env.e2e`.

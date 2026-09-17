@@ -1,5 +1,7 @@
 """Constants for the application."""
 
+# Default env file for Pydantic Settings (override with APP_ENV_FILE).
+DEFAULT_ENV_FILE = ".env"
 
 # Slow request threshold in seconds (the same log goes into requests and slow_requests).
 SLOW_REQUEST_THRESHOLD_SEC = 1.0

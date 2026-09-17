@@ -28,50 +28,32 @@ def assert_cart_structure(
 def assert_product_structure(
     product: dict,
     *,
-    expected_name: str = None,
-    expected_price: float = None,
-    expected_stock: int = None,
-    expected_description: str = None,
-    expected_category_id: str = None,
-    expected_seller_id: str = None,
-    expected_available: bool = True,
+    expected_name: str | None = None,
+    expected_price: float | None = None,
+    expected_stock: int | None = None,
+    expected_description: str | None = None,
+    expected_available: bool | None = None,
 ) -> None:
-    assert (
-        product["name"] == expected_name if expected_name else pytest.skip("expected name is not provided"),
-        f"expected name {expected_name}, got {product['name']}"
-    )
-    assert (
-        product["price"] == expected_price if expected_price else pytest.skip("expected price is not provided"),
-        f"expected price {expected_price}, got {product['price']}"
-    )
-    assert (
-        product["stock"] == expected_stock if expected_stock else pytest.skip("expected stock is not provided"),
-        f"expected stock {expected_stock}, got {product['stock']}"
-    )
-    assert (
-        product["description"] == expected_description if expected_description else pytest.skip("expected description is not provided"),
-        f"expected description {expected_description}, got {product['description']}"
-    )
-    assert (
-        product["available"] == expected_available if expected_available else pytest.skip("expected available is not provided"),
-        f"expected available {expected_available}, got {product['available']}"
-    )
-    assert (
-        product["category_id"] == expected_category_id if expected_category_id else pytest.skip("expected category_id is not provided"),
-        f"expected category_id {expected_category_id}, got {product['category_id']}"
-    )
-    assert (
-        product["seller_id"] == expected_seller_id if expected_seller_id else pytest.skip("expected seller_id is not provided"),
-        f"expected seller_id {expected_seller_id}, got {product['seller_id']}"
-    )
-    assert (
-        product["available"] == expected_available if expected_available else pytest.skip("expected available is not provided"),
-        f"expected available {expected_available}, got {product['available']}"
-    )
-    assert (
-        product["category_id"] == expected_category_id if expected_category_id else pytest.skip("expected category_id is not provided"),
-        f"expected category_id {expected_category_id}, got {product['category_id']}"
-    )
+    if expected_name is not None:
+        assert product["name"] == expected_name, (
+            f"expected name {expected_name}, got {product['name']}"
+        )
+    if expected_price is not None:
+        assert product["price"] == expected_price, (
+            f"expected price {expected_price}, got {product['price']}"
+        )
+    if expected_stock is not None:
+        assert product["stock"] == expected_stock, (
+            f"expected stock {expected_stock}, got {product['stock']}"
+        )
+    if expected_description is not None:
+        assert product.get("description") == expected_description, (
+            f"expected description {expected_description}, got {product.get('description')}"
+        )
+    if expected_available is not None:
+        assert product["available"] == expected_available, (
+            f"expected available {expected_available}, got {product['available']}"
+        )
 
 
 def unique_email(prefix: str = "e2e") -> str:
