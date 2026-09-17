@@ -1,6 +1,6 @@
 # FastAPI Marketplace
 
-Микросервисный бэкенд маркетплейса на **FastAPI**: пользователи и аутентификация, каталог товаров и категорий, корзина и заготовки под заказы. Сервисы изолированы по данным (database-per-service), общаются по HTTP и через **RabbitMQ**, поднимаются через **Docker Compose**.
+Микросервисный бэкенд маркетплейса на **FastAPI**: пользователи и аутентификация, каталог товаров и категорий, корзина и заготовки под заказы. Сервисы изолированы по данным (database-per-service), общаются по HTTP и через **RabbitMQ**, поднимаются через **Docker Compose**. Есть black-box **e2e**-набор против полного стека.
 
 Подробная инструкция по запуску и окружению: [deployment.md](./deployment.md).
 
@@ -9,20 +9,20 @@
 ## Зачем этот проект
 
 - Демонстрирует связку **API + Postgres + SQLAlchemy + RabbitMQ + Redis + JWT + Docker**, типичную для e-commerce.
-- Полезен как основа для внедрения production-features: платежи, AI-рекомендации, API Gateway, наблюдаемость.
+- Полезен как основа для внедрения доработок: заказы, платежи, API Gateway, наблюдаемость, CI.
 
 ---
 
 ## Архитектура сервисов
 
-| Сервис | Порт | Назначение | Статус |
-|--------|------|------------|--------|
+| Сервис | Порт (dev) | Назначение | Статус |
+|--------|------------|------------|--------|
 | **user_service** | `8000` | Регистрация, JWT (RS256), роли, CRUD пользователей | Готов |
-| **product_service** | `8001` | Категории и товары, фильтры, soft delete, RPC к user | Готов |
-| **cart_service** | `8002` | Корзина в Redis, события Product.* через RabbitMQ | Готов |
-| **order_service** | — | Оформление заказов | Заготовка |
+| **product_service** | `8001` | Категории и товары, фильтры, soft delete, RPC к user, события каталога | Готов |
+| **cart_service** | `8002` | Корзина в Redis, реакция на `product.deleted` / `product.unavailable` | Готов |
+| **order_service** | — | Модели/Alembic есть, API — заготовка | Не в Compose |
 
-**Инфраструктура:** PostgreSQL (отдельные БД для user и product), RabbitMQ (AMQP + Management UI), Redis (для корзины и кэша catalog).
+**Инфраструктура в Compose:** PostgreSQL ×2 (user / product), RabbitMQ (+ Management UI), Redis.
 
 ```
 Клиент (HTTP)
@@ -31,8 +31,8 @@
     │         │ RabbitMQ RPC: проверка seller
     │         │
     └─► product_service ──► Postgres (products)
-              │
-              │ RabbitMQ topic: product.deleted / product.unavailable
+              │              (+ опциональный Redis-кэш)
+              │ RabbitMQ topic: product.deleted / product.unavailable / …
               ▼
          cart_service ──► Redis
 ```
@@ -41,12 +41,13 @@
 
 ## Сильные стороны
 
-1. **Разделение ответственности** — у каждого сервиса свой домен и своя БД; проще масштабировать и развивать независимо.
-2. **Production-minded user_service** — JWT RS256, refresh-токены, RBAC (`admin` / `user` / `seller`), healthcheck, структурированные логи, seed-скрипт, unit/integration-тесты.
-3. **Каталог с «боевыми» деталями** — иерархия категорий, пагинация и фильтры, soft/hard delete, OpenAPI-описания, опциональный Redis-кэш.
-4. **Асинхронная интеграция** — request/reply через RabbitMQ с `correlation_id` и таймаутами (маппинг в HTTP 504) — наглядный паттерн межсервисного вызова без жёсткой связки HTTP.
-5. **DevOps-база** — Docker Compose с healthcheck и `depends_on`, разделение `.env` (Compose) и `.env.docker` (runtime), bind-mount + `--reload` для разработки.
-6. **Современный Python-стек** — Python 3.12+, FastAPI, SQLAlchemy 2 async, Pydantic Settings, упаковка через **uv** (`pyproject.toml` + lockfile).
+1. **Разделение ответственности** — у каждого сервиса свой домен и своя БД (или Redis для корзины).
+2. **Production-minded user_service** — JWT RS256, refresh-токены, RBAC (`admin` / `user` / `seller`), healthcheck, логи, seed, unit/integration-тесты.
+3. **Каталог** — иерархия категорий, пагинация/фильтры, soft/hard delete, OpenAPI, Alembic, опциональный Redis-кэш.
+4. **Два стиля messaging** — RPC request/reply (seller check) и pub/sub события каталога → синхронизация корзин.
+5. **Cart в стеке** — Redis + consumer на topic exchange; e2e проверяет побочные эффекты удаления товара.
+6. **DevOps** — Compose с healthcheck/`depends_on`, `.env` + `.env.docker`, e2e-overlay с отдельными портами (параллельно с dev).
+7. **Стек** — Python 3.12+, FastAPI, SQLAlchemy 2 async, Pydantic Settings, **uv**.
 
 ---
 
@@ -54,25 +55,28 @@
 
 | Паттерн / практика | Где проявляется |
 |--------------------|-----------------|
-| **Микросервисы + Database per service** | Отдельные Postgres для user и product |
+| **Микросервисы + Database per service** | Отдельные Postgres для user и product; Redis для cart |
 | **Слоистая архитектура** | `api` → `services` → `repositories` → `storage` |
 | **Dependency Injection** | FastAPI `Depends`, typed-зависимости (`AdminUserDep`, `SessionDep`, …) |
-| **Repository** | Репозитории пользователей, товаров, категорий, корзины |
-| **RPC / Messaging** | aio-pika, durable queue `user.get_user_by_id.seller` |
-| **Кэширование** | Декоратор Redis-кэша в product_service (включается настройкой) |
-| **RBAC** | Роли и dependency-guards на эндпоинтах |
-| **Lifespan startup** | Проверка БД/MQ/Redis, миграции или `create_all`, фоновый consumer |
-| **Middleware** | CORS, логирование запросов и медленных операций |
-| **Healthchecks** | `/healthcheck` у сервисов + healthcheck контейнеров |
-| **Soft delete** | Товары: режим `soft` / полное удаление |
-| **Конфигурация** | Pydantic Settings, вложенные секции (app, postgres, rabbitmq, jwt, redis) |
+| **Repository** | User / Product / Category / Cart |
+| **RPC** | aio-pika, queue `user.get_user_by_id.seller` |
+| **Event-driven (pub/sub)** | Exchange `Product`, routing keys `product.*` → cart consumer |
+| **Кэширование** | Декоратор Redis-кэша в product_service (`REDIS_ENABLED`) |
+| **RBAC** | Роли и dependency-guards |
+| **Lifespan startup** | Проверка БД/MQ/Redis, миграции, фоновый consumer |
+| **Middleware** | CORS, логирование запросов |
+| **Healthchecks** | `/healthcheck` + healthcheck контейнеров |
+| **Soft delete** | Товары: `mode=soft` / полное удаление + события в MQ |
+| **Black-box e2e** | `tests/e2e` + httpx против Compose |
+| **Конфигурация** | Pydantic Settings; Compose / runtime / e2e env разделены |
 
 ---
 
 ## Быстрый старт
 
 ```bash
-# из корня репозитория
+# из корня (если нет .env — скопируйте .env.example → .env)
+cp .env.example .env   # при необходимости
 docker compose up --build
 ```
 
@@ -85,34 +89,60 @@ docker compose up --build
 
 Остановка: `docker compose down`.
 
-Полный чеклист (ключи JWT, env, миграции, seed, локальный запуск без Docker для приложений): см. **[deployment.md](./deployment.md)**.
+Перед первым запуском нужны JWT-ключи в `services/user_service/keys/` — см. [deployment.md](./deployment.md).
+
+---
+
+## E2E-тесты
+
+Black-box pytest + httpx: smoke health, роли/auth, каталог, RPC seller, корзина и реакция на удаление товара.
+
+| Скрипт | Поведение |
+|--------|-----------|
+| `scripts/e2e/run.sh` | `up -d [--build]` → `pytest tests/e2e` → `down -v` |
+| `scripts/e2e/run.ps1` | то же (`-NoBuild` / `--no-build` без пересборки) |
+
+```bash
+# Linux / macOS / Git Bash
+./scripts/e2e/run.sh
+./scripts/e2e/run.sh --no-build
+
+# Windows
+.\scripts\e2e\run.ps1
+.\scripts\e2e\run.ps1 -NoBuild
+```
+
+E2E использует **смещённые порты** (по умолчанию `18000` / `18001` / `18002`), чтобы не конфликтовать с dev-стеком. Шаблон: `.env.e2e.example` → `.env.e2e`.
+
+Подробности: [deployment.md](./deployment.md) § E2E.
 
 ---
 
 ## Стек
 
 - **API:** FastAPI, Uvicorn  
-- **БД:** PostgreSQL 16, SQLAlchemy 2 (asyncpg), Alembic (user / product / order)  
-- **Кэш / корзина:** Redis  
+- **БД:** PostgreSQL 16, SQLAlchemy 2 (asyncpg); Alembic в user / product / order  
+- **Кэш / корзина:** Redis 7  
 - **Очереди:** RabbitMQ 3 (Management)  
 - **Auth:** JWT RS256, OAuth2 password flow, bcrypt  
 - **Логи:** Loguru  
-- **Тесты:** pytest (+ asyncio)  
+- **Тесты:** pytest (+ asyncio); e2e в корневом `tests/e2e`  
 - **Упаковка / запуск:** uv, Docker, Docker Compose  
 
 ---
 
 ## Возможные пути развития
 
-1. **Реализовать order_service** — checkout из корзины, статусы заказа, резерв остатков; паттерн saga / transactional outbox.
-2. **API Gateway / BFF** — единая точка входа, проверка JWT один раз, rate limiting, маршрутизация.
-3. **Общая аутентификация между сервисами** — раздача public key / JWKS, Bearer на product/cart/order (сейчас JWT сосредоточен в user_service).
-4. ~~**Миграции для product (и order)** — Alembic вместо `create_all` на старте.~~ 
-5. **Observability** — Prometheus-метрики, OpenTelemetry-трейсы, correlation id через HTTP и MQ.
-6. **CI/CD** — прогон pytest, smoke healthcheck после `compose up`, нагрузочные сценарии на базе `seed_users`.
-7. **Production Docker** — сборка через `uv sync`, без bind-mount и `--reload`; единая версия Python во всех образах.
-8. **Recommendation service** — персональные и популярные рекомендации на основе просмотров/покупок (сейчас только идея в roadmap).
-9. **Усиление безопасности** — секреты вне репозитория, ужесточение CORS, минимальный payload в JWT.
+1. **Довести order_service** — checkout из корзины, статусы, резерв остатков; saga / transactional outbox; добавить в Compose.
+2. **API Gateway / BFF** — единая точка входа, JWT один раз, rate limiting.
+3. **Общая аутентификация между сервисами** — JWKS / public key, Bearer на product/cart/order.
+4. **Ревизии Alembic для user_service** — сейчас startup опирается на `create_all` при отсутствии versions.
+5. **Observability** — Prometheus, OpenTelemetry, correlation id через HTTP и MQ.
+6. **CI** — unit-тесты сервисов + `scripts/e2e/run.sh` в pipeline.
+7. **Production Docker** — `uv sync --frozen`, без bind-mount/`--reload`, единый Python во всех образах.
+8. **Recommendation service** — персональные/популярные рекомендации.
+9. **Безопасность** — секреты вне репозитория, ужесточение CORS, минимальный JWT payload.
+10. **CI e2e на Windows** — тот же `run.ps1`, что и `run.sh`.
 
 ---
 
@@ -121,12 +151,12 @@ docker compose up --build
 ```
 fastApi_marketplace_project/
 ├── docker-compose.yml
-├── docker-compose.e2e.yml    # overlay для e2e (без reload, быстрый healthcheck)
-├── .env                      # переменные для подстановки в Compose
-├── .env.e2e.example          # порты/URL для e2e
-├── pyproject.toml            # зависимости e2e (optional-dependencies)
-├── tests/e2e/                # black-box сценарии интеграции сервисов
-├── scripts/e2e/              # run.ps1 / run.sh
+├── docker-compose.e2e.yml      # overlay: без --reload, быстрый healthcheck, свои порты/имена
+├── .env.example                # шаблон для обычного Compose
+├── .env.e2e.example            # шаблон для e2e (порты 18xxx)
+├── pyproject.toml              # зависимости корневых e2e-тестов
+├── tests/e2e/                  # black-box сценарии
+├── scripts/e2e/                # run.ps1 / run.sh: up + pytest
 ├── deployment.md
 └── services/
     ├── user_service/
@@ -135,33 +165,8 @@ fastApi_marketplace_project/
     └── order_service/
 ```
 
-### E2E-тесты интеграции
-
-Black-box pytest + httpx против поднятого Compose-стека (user ↔ product через RabbitMQ RPC, product → cart через topic events).
-
-```bash
-# Windows
-.\scripts\e2e\run.ps1
-
-# Linux / macOS / Git Bash
-./scripts/e2e/run.sh
-```
-
-Или вручную: скопировать `.env.e2e.example` → `.env.e2e`, поднять стек и запустить pytest:
-
-```bash
-docker compose --env-file .env.e2e -f docker-compose.yml -f docker-compose.e2e.yml -p marketplace-e2e up --build -d
-uv sync   # или: pip install httpx pytest pytest-asyncio python-dotenv
-uv run pytest tests/e2e
-docker compose --env-file .env.e2e -f docker-compose.yml -f docker-compose.e2e.yml -p marketplace-e2e down -v
-```
-
-Можно гонять те же тесты против обычного `docker compose up`, если порты совпадают с `USER_SERVICE_URL` / `PRODUCT_SERVICE_URL` / `CART_SERVICE_URL` в `.env.e2e`.
-
-Подробности: [deployment.md](./deployment.md) § E2E.
-
 ---
 
 ## Лицензия и вклад
 
-Проект демонстрационный. Pull request’ы и предложения по доработке сервисов приветствуются.
+Проект демонстрационный. Удобные точки входа для доработки: `order_service`, общая JWT-валидация между сервисами, CI вокруг e2e.

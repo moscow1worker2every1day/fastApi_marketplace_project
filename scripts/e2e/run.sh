@@ -1,53 +1,35 @@
 #!/usr/bin/env bash
-# Поднять e2e-стек, дождаться healthcheck (в conftest) и прогнать pytest.
-# Usage: ./scripts/e2e/run.sh [--skip-up] [--skip-down] [-- pytest args...]
+# Поднять e2e-стек и запустить pytest.
+# Usage: ./scripts/e2e/run.sh [--no-build]
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-cd "$ROOT"
+cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
-SKIP_UP=0
-SKIP_DOWN=0
-PYTEST_ARGS=(tests/e2e)
-
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    --skip-up) SKIP_UP=1; shift ;;
-    --skip-down) SKIP_DOWN=1; shift ;;
-    --) shift; PYTEST_ARGS=("$@"); break ;;
-    *) PYTEST_ARGS=("$@"); break ;;
-  esac
-done
+NO_BUILD=0
+[[ "${1:-}" == "--no-build" ]] && NO_BUILD=1
 
 if [[ ! -f .env.e2e ]]; then
   cp .env.e2e.example .env.e2e
   echo "Created .env.e2e from .env.e2e.example"
 fi
 
-COMPOSE=(docker compose --env-file .env.e2e -f docker-compose.yml -f docker-compose.e2e.yml -p marketplace-e2e)
+cmd=(
+  docker compose --env-file .env.e2e
+  -f docker-compose.yml -f docker-compose.e2e.yml
+  -p marketplace-e2e up -d
+)
+[[ "$NO_BUILD" -eq 0 ]] && cmd+=(--build)
 
-if [[ "$SKIP_UP" -eq 0 ]]; then
-  echo "Starting e2e stack..."
-  "${COMPOSE[@]}" up --build -d
-fi
+echo "Starting e2e stack..."
+"${cmd[@]}"
 
+echo "Installing e2e deps..."
 if command -v uv >/dev/null 2>&1; then
   uv sync
-  RUNNER=(uv run pytest)
+  echo "Running pytest..."
+  uv run pytest tests/e2e
 else
   python -m pip install httpx "pytest>=9" pytest-asyncio python-dotenv
-  RUNNER=(python -m pytest)
+  echo "Running pytest..."
+  python -m pytest tests/e2e
 fi
-
-echo "Running ${RUNNER[*]} ${PYTEST_ARGS[*]} ..."
-set +e
-"${RUNNER[@]}" "${PYTEST_ARGS[@]}"
-TEST_EXIT=$?
-set -e
-
-if [[ "$SKIP_DOWN" -eq 0 ]]; then
-  echo "Tearing down e2e stack..."
-  "${COMPOSE[@]}" down -v
-fi
-
-exit "$TEST_EXIT"
