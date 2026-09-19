@@ -1,0 +1,107 @@
+# Production overlay: no bind-mount / --reload, workers from env,
+# infra ports not published, JWT keys mounted read-only.
+#
+# Запуск:
+#   cp .env.example .env.prod   # затем выставить WORKERS, пароли, RELOAD=False
+#   docker compose --env-file .env.prod \
+#     -f docker-compose.yml -f docker-compose.prod.yml \
+#     -p marketplace-prod up --build -d
+#
+# Остановка:
+#   docker compose --env-file .env.prod \
+#     -f docker-compose.yml -f docker-compose.prod.yml \
+#     -p marketplace-prod down
+
+services:
+  postgres_user:
+    ports: !override []
+    security_opt:
+      - no-new-privileges:true
+
+  postgres_product:
+    ports: !override []
+    security_opt:
+      - no-new-privileges:true
+
+  rabbitmq:
+    ports: !override []
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    security_opt:
+      - no-new-privileges:true
+
+  redis:
+    ports: !override []
+    security_opt:
+      - no-new-privileges:true
+
+  user_service:
+    environment:
+      APP_RELOAD: "False"
+      APP_WORKERS: ${USER_APP_WORKERS:-2}
+      POSTGRES_PORT: 5432
+    volumes: !override
+      - ./services/user_service/keys:/code/keys:ro
+    command: !override
+      - sh
+      - -c
+      - exec uvicorn app.main:app --host ${USER_APP_INTERNAL_HOST} --port ${USER_APP_INTERNAL_PORT} --workers ${USER_APP_WORKERS:-2}
+    ports: !override
+      - "127.0.0.1:${USER_APP_EXTERNAL_PORT}:${USER_APP_INTERNAL_PORT}"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:${USER_APP_INTERNAL_PORT}/healthcheck || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 512m
+    cpus: 1.0
+
+  product_service:
+    environment:
+      APP_RELOAD: "False"
+      APP_WORKERS: ${PRODUCT_APP_WORKERS:-2}
+      POSTGRES_PORT: 5432
+    volumes: !override []
+    command: !override
+      - sh
+      - -c
+      - exec uvicorn app.main:app --host ${PRODUCT_APP_INTERNAL_HOST} --port ${PRODUCT_APP_INTERNAL_PORT} --workers ${PRODUCT_APP_WORKERS:-2}
+    ports: !override
+      - "127.0.0.1:${PRODUCT_APP_EXTERNAL_PORT}:${PRODUCT_APP_INTERNAL_PORT}"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:${PRODUCT_APP_INTERNAL_PORT}/healthcheck || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 512m
+    cpus: 1.0
+
+  cart_service:
+    environment:
+      APP_WORKERS: ${CART_APP_WORKERS:-2}
+    volumes: !override []
+    command: !override
+      - sh
+      - -c
+      - exec uvicorn app.main:app --host ${CART_APP_INTERNAL_HOST} --port ${CART_APP_INTERNAL_PORT} --workers ${CART_APP_WORKERS:-2}
+    ports: !override
+      - "127.0.0.1:${CART_APP_EXTERNAL_PORT}:${CART_APP_INTERNAL_PORT}"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:${CART_APP_INTERNAL_PORT}/healthcheck || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 512m
+    cpus: 1.0
+
+volumes:
+  rabbitmq_data:

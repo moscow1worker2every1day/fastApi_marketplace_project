@@ -1,13 +1,41 @@
+from contextlib import asynccontextmanager
 from enum import Enum
 from uuid import UUID
 
 from fastapi import FastAPI, status
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse, PlainTextResponse
+from fastapi.responses import JSONResponse
 
 from app.api.orders import router as orders_router
+from app.log import configure_logging, startup_logger
+from app.storage.postgresql.connection import DatabaseManager
 
-app = FastAPI()
+configure_logging()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Check DB connection and apply Alembic migrations on startup."""
+    startup_logger.info("Startup order-service")
+    try:
+        async with DatabaseManager.session_factory() as session:
+            startup_logger.info("Checking the database connection...")
+            await DatabaseManager.check_connection(session)
+            startup_logger.info("Running database migrations...")
+            await DatabaseManager.run_migrations(session)
+    except Exception as e:
+        startup_logger.error(
+            "Connection to the database failed: "
+            f"{type(e).__name__} - {e}."
+        )
+        raise
+
+    startup_logger.info("Service is ready to accept requests.")
+    yield
+    startup_logger.info("Shutting down service...")
+
+
+app = FastAPI(lifespan=lifespan)
 
 app.include_router(orders_router)
 

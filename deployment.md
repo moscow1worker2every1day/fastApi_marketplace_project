@@ -123,7 +123,7 @@ curl -fsS http://localhost:8002/healthcheck
 
 ### user_service
 
-При старте — Alembic `upgrade head` (если есть ревизии) и/или `create_all`. Каталог `alembic/versions/` может быть пустым.
+При старте — Alembic `upgrade head`. Есть начальная ревизия (`users`, enum `user_role`).
 
 ```bash
 docker compose exec user_service alembic upgrade head
@@ -131,7 +131,7 @@ docker compose exec user_service alembic upgrade head
 
 ### product_service
 
-При старте — Alembic `upgrade head`, затем проверка схемы. Есть начальная ревизия (`categories`, `products`).
+При старте — Alembic `upgrade head`. Есть начальная ревизия (`categories`, `products`).
 
 ```bash
 docker compose exec product_service alembic upgrade head
@@ -139,7 +139,7 @@ docker compose exec product_service alembic upgrade head
 
 ### order_service
 
-Alembic и ORM (`orders`, `order_items`) есть. Сервис не в Compose — миграции вручную, когда появится Postgres:
+При старте — Alembic `upgrade head` (lifespan). Есть начальная ревизия (`orders`, `order_items`). Сервис пока не в Compose — нужен доступный Postgres в env:
 
 ```bash
 cd services/order_service
@@ -283,13 +283,46 @@ docker compose --env-file .env.e2e -f docker-compose.yml -f docker-compose.e2e.y
 
 ---
 
-## 11. Рекомендации
+## 11. Production (Compose overlay)
 
-- Убрать bind-mount и `--reload`; фиксированное число workers.
-- Сборка через `uv sync --frozen` в Dockerfile.
-- Секреты — Docker secrets / CI variables; не коммитить боевые `.env`.
-- Reverse-proxy (Nginx / Traefik / API Gateway) + TLS.
-- Метрики и централизованные логи.
-- В CI: unit-тесты сервисов и `./scripts/e2e/run.sh`.
+Образы собираются multi-stage через `uv sync --frozen`, процесс под non-root `app`, `CMD` с `--workers`. JWT-ключи **не** кладутся в образ — в prod монтируются read-only.
 
-Минимальный сценарий на VPS: Docker → клон → `.env` из `.env.example` → заполнить `.env.docker` → JWT-ключи → `docker compose up -d --build` → health/Swagger за reverse-proxy.
+```bash
+cp .env.prod.example .env.prod
+# Заполнить пароли; сверить RABBITMQ_* и Postgres с services/*/.env.docker
+# JWT-ключи: services/user_service/keys/jwt-{private,public}.pem
+
+docker compose --env-file .env.prod \
+  -f docker-compose.yml -f docker-compose.prod.yml \
+  -p marketplace-prod up --build -d
+```
+
+Что делает `docker-compose.prod.yml`:
+
+| Изменение | Зачем |
+|-----------|--------|
+| Без bind-mount исходников | код только из образа |
+| `--workers` вместо `--reload` | prod uvicorn |
+| Порты Postgres / Redis / RabbitMQ не публикуются | не торчат наружу |
+| App-порты на `127.0.0.1` | доступ с хоста / через reverse-proxy |
+| Volume `rabbitmq_data` | персистентность брокера |
+| `mem_limit` / `cpus`, `no-new-privileges` | лимиты и hardening |
+| Healthcheck ~15s | быстрее детект падений |
+
+Проверка с хоста:
+
+```bash
+curl -fsS http://127.0.0.1:8000/healthcheck
+curl -fsS http://127.0.0.1:8001/healthcheck
+curl -fsS http://127.0.0.1:8002/healthcheck
+```
+
+Остановка:
+
+```bash
+docker compose --env-file .env.prod \
+  -f docker-compose.yml -f docker-compose.prod.yml \
+  -p marketplace-prod down
+```
+
+Дальше для боевого контура: reverse-proxy (Nginx / Traefik) + TLS, секреты вне git, метрики/логи, в CI — unit + `./scripts/e2e/run.sh`.

@@ -97,7 +97,7 @@ services:
       POSTGRES_PASSWORD: ${USER_POSTGRES_PASSWORD}
       POSTGRES_DB: ${USER_POSTGRES_DB}
       POSTGRES_HOST: postgres_user
-      POSTGRES_PORT: ${USER_POSTGRES_PORT}
+      POSTGRES_PORT: 5432
     depends_on:
       postgres_user:
         condition: service_healthy

@@ -145,7 +145,7 @@ E2E использует **смещённые порты** (по умолчан�
 4. **Ревизии Alembic для user_service** — сейчас startup опирается на `create_all` при отсутствии versions.
 5. **Observability** — Prometheus, OpenTelemetry, correlation id через HTTP и MQ.
 6. **CI** — unit-тесты сервисов + `scripts/e2e/run.sh` в pipeline.
-7. **Production Docker** — `uv sync --frozen`, без bind-mount/`--reload`, единый Python во всех образах.
+7. **Production Docker** — частично: multi-stage + `uv sync --frozen`, `docker-compose.prod.yml`; дальше — reverse-proxy/TLS и order_service в Compose.
 8. **Recommendation service** — персональные/популярные рекомендации.
 9. **Безопасность** — секреты вне репозитория, ужесточение CORS, минимальный JWT payload.
 10. **CI e2e на Windows** — тот же `run.ps1`, что и `run.sh`.
@@ -158,8 +158,10 @@ E2E использует **смещённые порты** (по умолчан�
 fastApi_marketplace_project/
 ├── docker-compose.yml
 ├── docker-compose.e2e.yml      # overlay: без --reload, быстрый healthcheck, свои порты/имена
+├── docker-compose.prod.yml     # overlay: prod (workers, без bind-mount, infra без publish)
 ├── .env.example                # шаблон для обычного Compose
 ├── .env.e2e.example            # шаблон для e2e (порты 18xxx)
+├── .env.prod.example           # шаблон для production Compose
 ├── pyproject.toml              # зависимости корневых e2e-тестов
 ├── tests/e2e/                  # black-box сценарии
 ├── scripts/e2e/                # run.ps1 / run.sh: up + pytest

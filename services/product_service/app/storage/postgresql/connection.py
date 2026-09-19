@@ -10,7 +10,6 @@ from sqlalchemy.pool import AsyncAdaptedQueuePool
 
 from app.config import settings
 from app.log import startup_logger
-from app.storage.postgresql.models import Base
 from app.storage.postgresql.models import category_model, product_model  # noqa: F401
 
 
@@ -83,7 +82,7 @@ class DatabaseManager:
 
     @staticmethod
     async def run_migrations(session: AsyncSession) -> None:
-        """Runs migrations, then ensures ORM tables exist."""
+        """Applies Alembic migrations up to head."""
         try:
             command, Config = _import_alembic()
             alembic_cfg = Config(settings.alembic.alembic_ini_path)
@@ -98,11 +97,10 @@ class DatabaseManager:
             command.upgrade(alembic_cfg, "head")
             startup_logger.info("Migrations completed successfully.")
         except Exception as e:
-            startup_logger.warning(
-                f"Migrations failed: {type(e).__name__} - {e}. "
-                "Attempting to create tables directly."
+            startup_logger.error(
+                f"Migrations failed: {type(e).__name__} - {e}."
             )
-            raise e
+            raise
 
 
 SessionDep = Annotated[AsyncSession, Depends(DatabaseManager.get_session)]
